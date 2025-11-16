@@ -37,6 +37,47 @@ def apply_css():
           padding: 28px 36px;
         }
 
+        /* Responsive Design */
+        @media (max-width: 768px) {
+          [data-testid="stAppViewContainer"] {
+            padding: 16px 20px;
+          }
+
+          .nav-container {
+            flex-direction: column !important;
+            padding: 12px 16px !important;
+            margin-bottom: 16px !important;
+          }
+
+          .nav-title {
+            margin-bottom: 12px;
+            font-size: 18px !important;
+          }
+
+          div[data-testid="stButton"] > button {
+            padding: 8px 16px !important;
+            font-size: 14px !important;
+            margin: 2px !important;
+          }
+
+          .app-card {
+            padding: 16px !important;
+            margin-bottom: 16px !important;
+          }
+        }
+
+        @media (max-width: 480px) {
+          [data-testid="stAppViewContainer"] {
+            padding: 12px 16px;
+          }
+
+          .nav-title .logo {
+            width: 32px !important;
+            height: 32px !important;
+            font-size: 14px !important;
+          }
+        }
+
         .nav-container {
           background: linear-gradient(90deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));
           border: 1px solid rgba(255,255,255,0.03);
@@ -51,10 +92,14 @@ def apply_css():
           z-index: 9999;
           backdrop-filter: blur(6px);
           margin-bottom: 18px;
+          flex-wrap: wrap;
+          justify-content: space-between;
         }
+
         .nav-title { display:flex; gap:10px; align-items:center; font-weight:700; color:#e6f8f5; }
         .nav-title .logo { width:40px; height:40px; display:inline-flex; align-items:center; justify-content:center; border-radius:8px; background: linear-gradient(90deg,#7c3aed33,#00dfd833); font-size:18px; }
 
+        /* Enhanced button styles with better mobile support */
         div[data-testid="stButton"] > button {
           background: transparent;
           color: #cfeff0;
@@ -64,8 +109,22 @@ def apply_css():
           font-size: 16px;
           font-weight: 600;
           transition: all 180ms ease;
+          min-height: 44px; /* Touch-friendly size */
+          display: flex;
+          align-items: center;
+          justify-content: center;
         }
-        div[data-testid="stButton"] > button:hover { transform: translateY(-4px); color: #fff; box-shadow: 0 6px 20px rgba(0,0,0,0.45); }
+
+        div[data-testid="stButton"] > button:hover {
+          transform: translateY(-4px);
+          color: #fff;
+          box-shadow: 0 6px 20px rgba(0,0,0,0.45);
+        }
+
+        div[data-testid="stButton"] > button:focus {
+          outline: 2px solid rgba(0,223,216,0.5);
+          outline-offset: 2px;
+        }
 
         .nav-active {
           background: linear-gradient(90deg,#00dfd8,#7c3aed) !important;
@@ -81,8 +140,15 @@ def apply_css():
           100% { box-shadow: 0 0 6px rgba(0,223,216,0.12); }
         }
 
-        .page-content { opacity: 0; transform: translateY(6px); transition: opacity 450ms ease-out, transform 450ms ease-out; }
-        .page-content.fade-in { opacity: 1; transform: translateY(0px); }
+        .page-content {
+          opacity: 0;
+          transform: translateY(6px);
+          transition: opacity 450ms ease-out, transform 450ms ease-out;
+        }
+        .page-content.fade-in {
+          opacity: 1;
+          transform: translateY(0px);
+        }
 
         .app-card {
           background: rgba(255,255,255,0.03);
@@ -92,6 +158,32 @@ def apply_css():
           margin-bottom: 20px;
           border:1px solid rgba(255,255,255,0.04);
           box-shadow: 0 8px 26px rgba(0,0,0,0.35);
+          transition: all 300ms ease;
+        }
+
+        .app-card:hover {
+          transform: translateY(-2px);
+          box-shadow: 0 12px 32px rgba(0,0,0,0.4);
+        }
+
+        /* Audio recorder specific styles */
+        #audio-recorder {
+          max-width: 100%;
+          margin: 0 auto;
+        }
+
+        #audio-recorder button {
+          min-width: 120px;
+          min-height: 44px;
+          touch-action: manipulation;
+        }
+
+        @media (max-width: 768px) {
+          #audio-recorder button {
+            min-width: 100px;
+            font-size: 14px;
+            padding: 8px 12px;
+          }
         }
 
         .app-footer {
@@ -106,6 +198,64 @@ def apply_css():
         }
 
         footer { visibility: hidden; }
+
+        /* Loading animations */
+        .loading-spinner {
+          border: 3px solid rgba(255,255,255,0.1);
+          border-radius: 50%;
+          border-top: 3px solid #00dfd8;
+          width: 40px;
+          height: 40px;
+          animation: spin 1s linear infinite;
+          margin: 20px auto;
+        }
+
+        @keyframes spin {
+          0% { transform: rotate(0deg); }
+          100% { transform: rotate(360deg); }
+        }
+
+        /* Error state styling */
+        .error-container {
+          background: rgba(244,67,54,0.1);
+          border: 1px solid rgba(244,67,54,0.3);
+          border-radius: 8px;
+          padding: 16px;
+          margin: 16px 0;
+        }
+
+        /* Success state styling */
+        .success-container {
+          background: rgba(76,175,80,0.1);
+          border: 1px solid rgba(76,175,80,0.3);
+          border-radius: 8px;
+          padding: 16px;
+          margin: 16px 0;
+        }
+
+        /* Chart container responsiveness */
+        .js-plotly-plot {
+          max-width: 100% !important;
+          height: auto !important;
+        }
+
+        @media (max-width: 768px) {
+          .plotly-graph-div {
+            height: 300px !important;
+          }
+        }
+
+        /* Better form styling for mobile */
+        .stSelectbox > div > div {
+          min-height: 44px;
+        }
+
+        .stTextInput > div > div > input,
+        .stNumberInput > div > div > input,
+        .stDateInput > div > div > input {
+          min-height: 44px;
+          border-radius: 8px;
+        }
         </style>
         """,
         unsafe_allow_html=True,
