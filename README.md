@@ -74,3 +74,35 @@ streamlit run app/streamlit_app.py
 ## License
 
 [Add your license here]
+
+## Auto-sync (optional)
+
+This repository includes a small PowerShell helper and a scheduled task to auto-fetch and fast-forward-pull
+remote changes into your local copy when it is clean and strictly behind the remote. This is intended for
+environments where you want remote changes to appear locally automatically (for example CI agents or single-user
+workstations).
+
+- Script path: `scripts/autopull.ps1`
+- Scheduled task: `SleepTracker_AutoGitPull` (runs every 5 minutes)
+
+How it works
+- The script fetches `origin`, checks whether your current branch is clean and strictly behind the upstream, and
+	performs `git pull --ff-only` only in that safe case. If you have uncommitted changes, or branches have diverged,
+	it skips the pull to avoid accidental conflicts or data loss.
+
+Quick manual test
+1. Run once and show output in console:
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -Command "& { . 'C:\Users\ahmed\OneDrive\Desktop\sleep-tracker\scripts\autopull.ps1'; Run-Once }"
+```
+
+2. To run the script continuously (background) use the scheduled task (already created) or run the script directly:
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File "C:\Users\ahmed\OneDrive\Desktop\sleep-tracker\scripts\autopull.ps1"
+```
+
+Log file
+- The script appends diagnostic lines to `scripts/autopull.log` inside the repository.
+
+If you'd like different behavior (auto-stash/pop, automatic merges, or different polling interval), please let me
+know and I can adjust the script accordingly.
