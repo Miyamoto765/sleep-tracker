@@ -37,9 +37,9 @@ function Run-Once {
     git fetch origin --prune
 
     # Determine status between local and remote
-    $local = git rev-parse @ 2>$null
-    $remote = git rev-parse @{u} 2>$null
-    $base = git merge-base @ @{u} 2>$null
+    $local = git rev-parse "@" 2>$null
+    $remote = git rev-parse "@{u}" 2>$null
+    $base = git merge-base "@" "@{u}" 2>$null
 
     if (-not $remote) {
         Log "No upstream configured for current branch. Skipping pull."; return
