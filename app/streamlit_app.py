@@ -7,10 +7,11 @@ if ROOT not in sys.path:
     
 import streamlit as st
 from app.ui import apply_css, navbar_buttons, footer
-from app.views import main, home, upload, logger, analytics
+from app.views import main, home, upload, logger, analytics, realtime
 
 PAGES = {
     "Home": home,
+    "Real-time": realtime,
     "Upload": upload,
     "Logger": logger,
     "Analytics": analytics
