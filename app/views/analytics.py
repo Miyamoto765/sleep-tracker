@@ -55,22 +55,301 @@ def _map_prediction_to_label(pred):
         return "Wake"
     return "Unknown"
 
+def load_all_data():
+    """Load and combine data from all sources."""
+    dfs = []
+
+    # Load upload history
+    if os.path.exists(HISTORY_CSV):
+        try:
+            df_upload = pd.read_csv(HISTORY_CSV)
+            df_upload['data_source'] = 'upload'
+            dfs.append(df_upload)
+        except Exception as e:
+            st.error(f"Failed to read upload history: {e}")
+
+    # Load real-time history
+    if os.path.exists(REALTIME_HISTORY_CSV):
+        try:
+            df_realtime = pd.read_csv(REALTIME_HISTORY_CSV)
+            df_realtime['data_source'] = 'realtime'
+            # Rename columns to match upload format
+            if 'confidence' in df_realtime.columns:
+                df_realtime = df_realtime.rename(columns={'confidence': 'sleep_score'})
+            if 'prediction' in df_realtime.columns:
+                df_realtime = df_realtime.rename(columns={'prediction': 'label'})
+            dfs.append(df_realtime)
+        except Exception as e:
+            st.error(f"Failed to read real-time history: {e}")
+
+    # Load database data
+    try:
+        session_manager = get_session_manager()
+        df_db = session_manager.get_recent_predictions(days=90, limit=100)
+        if not df_db.empty:
+            df_db['data_source'] = 'database'
+            # Rename columns to match format
+            df_db = df_db.rename(columns={
+                'predicted_stage': 'label',
+                'confidence_score': 'sleep_score'
+            })
+            if 'created_at' in df_db.columns:
+                df_db = df_db.rename(columns={'created_at': 'timestamp'})
+            dfs.append(df_db)
+    except Exception as e:
+        st.warning(f"Could not load database data: {e}")
+
+    # Combine all data
+    if dfs:
+        combined_df = pd.concat(dfs, ignore_index=True, sort=False)
+    else:
+        combined_df = pd.DataFrame()
+
+    return combined_df
+
+def create_advanced_charts(df):
+    """Create advanced analytics charts."""
+    if df.empty:
+        return
+
+    st.markdown("### 📈 Advanced Sleep Pattern Analysis")
+
+    # Create tabs for different chart types
+    tab1, tab2, tab3, tab4 = st.tabs(["📊 Overview", "🌊 Trends", "🎯 Patterns", "📅 Calendar"])
+
+    with tab1:
+        create_overview_charts(df)
+
+    with tab2:
+        create_trend_charts(df)
+
+    with tab3:
+        create_pattern_charts(df)
+
+    with tab4:
+        create_calendar_charts(df)
+
+def create_overview_charts(df):
+    """Create overview dashboard charts."""
+    col1, col2 = st.columns(2)
+
+    with col1:
+        # Enhanced pie chart with subplots
+        st.subheader("Sleep Stage Distribution")
+        stage_counts = df['label'].value_counts()
+
+        fig = go.Figure(data=[go.Pie(
+            labels=stage_counts.index,
+            values=stage_counts.values,
+            hole=0.3,
+            marker_colors=[LABEL_COLORS.get(label, "#6c7a89") for label in stage_counts.index]
+        )])
+
+        fig.update_traces(textposition="inside", textinfo="percent+label",
+                        hovertemplate="<b>%{label}</b><br>Count: %{value}<br>Percentage: %{percent}<extra></extra>")
+        fig.update_layout(showlegend=True, height=400)
+        st.plotly_chart(fig, use_container_width=True)
+
+    with col2:
+        # Confidence distribution
+        st.subheader("Confidence Score Distribution")
+        if 'sleep_score' in df.columns:
+            fig = px.histogram(df, x='sleep_score', nbins=20,
+                             title="Distribution of Confidence Scores",
+                             color='label', color_discrete_map=LABEL_COLORS)
+            fig.update_layout(height=400)
+            st.plotly_chart(fig, use_container_width=True)
+        else:
+            st.info("No confidence score data available.")
+
+    # Summary metrics row
+    st.markdown("#### 📊 Key Metrics")
+    col1, col2, col3, col4 = st.columns(4)
+
+    with col1:
+        total_recordings = len(df)
+        st.metric("Total Recordings", total_recordings)
+
+    with col2:
+        if 'sleep_score' in df.columns:
+            avg_confidence = df['sleep_score'].mean()
+            st.metric("Avg Confidence", f"{avg_confidence:.1f}%")
+
+    with col3:
+        if len(df) > 0:
+            most_common = df['label'].mode().iloc[0] if not df['label'].mode().empty else 'N/A'
+            st.metric("Most Common Stage", most_common)
+
+    with col4:
+        if 'timestamp' in df.columns and df['timestamp'].notna().any():
+            days_active = df['timestamp'].dt.date.nunique()
+            st.metric("Active Days", days_active)
+
+def create_trend_charts(df):
+    """Create trend analysis charts."""
+    if 'timestamp' not in df.columns or df['timestamp'].isna().all():
+        st.warning("No timestamp data available for trend analysis.")
+        return
+
+    df_time = df.dropna(subset=['timestamp']).copy()
+    df_time = df_time.sort_values('timestamp')
+
+    # Confidence over time with trend line
+    st.subheader("Sleep Score Trends")
+    if 'sleep_score' in df_time.columns:
+        fig = px.scatter(df_time, x='timestamp', y='sleep_score',
+                        color='label', size='sleep_score',
+                        title="Confidence Score Trends Over Time",
+                        color_discrete_map=LABEL_COLORS,
+                        trendline="lowess")
+
+        fig.update_layout(height=400)
+        st.plotly_chart(fig, use_container_width=True)
+
+    # Daily/hourly patterns
+    col1, col2 = st.columns(2)
+
+    with col1:
+        # Hourly distribution
+        df_time['hour'] = df_time['timestamp'].dt.hour
+        hourly_counts = df_time.groupby(['hour', 'label']).size().reset_index(name='count')
+
+        fig_hourly = px.bar(hourly_counts, x='hour', y='count', color='label',
+                           title="Recording Distribution by Hour",
+                           color_discrete_map=LABEL_COLORS)
+        fig_hourly.update_layout(height=350)
+        st.plotly_chart(fig_hourly, use_container_width=True)
+
+    with col2:
+        # Day of week distribution
+        df_time['day_name'] = df_time['timestamp'].dt.day_name()
+        day_counts = df_time['day_name'].value_counts()
+
+        fig_day = px.bar(x=day_counts.index, y=day_counts.values,
+                        title="Recordings by Day of Week",
+                        labels={'x': 'Day of Week', 'y': 'Number of Recordings'})
+        fig_day.update_layout(height=350)
+        st.plotly_chart(fig_day, use_container_width=True)
+
+def create_pattern_charts(df):
+    """Create pattern recognition charts."""
+    st.subheader("Sleep Pattern Analysis")
+
+    # Create correlation matrix if we have numeric features
+    numeric_cols = df.select_dtypes(include=[np.number]).columns
+    if len(numeric_cols) > 1:
+        correlation_matrix = df[numeric_cols].corr()
+
+        fig = px.imshow(correlation_matrix,
+                       title="Feature Correlation Matrix",
+                       color_continuous_scale="RdBu",
+                       aspect="auto")
+        fig.update_layout(height=400)
+        st.plotly_chart(fig, use_container_width=True)
+
+    # Sleep stage transitions (if we have sequential data)
+    if 'timestamp' in df.columns and len(df) > 1:
+        df_sorted = df.sort_values('timestamp')
+
+        # Create transition matrix
+        stages = df_sorted['label'].unique()
+        transition_matrix = pd.DataFrame(0, index=stages, columns=stages)
+
+        for i in range(len(df_sorted) - 1):
+            current_stage = df_sorted.iloc[i]['label']
+            next_stage = df_sorted.iloc[i + 1]['label']
+            if current_stage in stages and next_stage in stages:
+                transition_matrix.loc[current_stage, next_stage] += 1
+
+        if transition_matrix.sum().sum() > 0:
+            st.subheader("Sleep Stage Transition Patterns")
+            fig = px.imshow(transition_matrix,
+                           title="Sleep Stage Transition Heatmap",
+                           labels=dict(x="Next Stage", y="Current Stage", color="Transitions"),
+                           color_continuous_scale="Viridis")
+            fig.update_layout(height=400)
+            st.plotly_chart(fig, use_container_width=True)
+
+def create_calendar_charts(df):
+    """Create calendar-based visualizations."""
+    st.subheader("Calendar View")
+
+    if 'timestamp' not in df.columns or df['timestamp'].isna().all():
+        st.warning("No timestamp data available for calendar view.")
+        return
+
+    df_time = df.dropna(subset=['timestamp']).copy()
+    df_time['date'] = df_time['timestamp'].dt.date
+    df_time['week'] = df_time['timestamp'].dt.isocalendar().week
+    df_time['day_of_week'] = df_time['timestamp'].dt.dayofweek
+
+    # Weekly heatmap
+    weekly_counts = df_time.groupby(['week', 'day_of_week', 'label']).size().reset_index(name='count')
+
+    pivot_data = weekly_counts.pivot_table(index='week', columns='day_of_week', values='count', aggfunc='sum', fill_value=0)
+
+    day_names = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
+    pivot_data.columns = day_names
+
+    fig = px.imshow(pivot_data.T,
+                   title="Weekly Recording Heatmap",
+                   labels=dict(x="Week", y="Day of Week", color="Recordings"),
+                   color_continuous_scale="Blues",
+                   aspect="auto")
+    fig.update_layout(height=300)
+    st.plotly_chart(fig, use_container_width=True)
+
+    # Monthly summary
+    df_time['month'] = df_time['timestamp'].dt.to_period('M')
+    monthly_stats = df_time.groupby('month').agg({
+        'label': 'count',
+        'sleep_score': 'mean' if 'sleep_score' in df_time.columns else lambda x: 0
+    }).rename(columns={'label': 'recordings'})
+
+    if not monthly_stats.empty:
+        st.subheader("Monthly Summary")
+        monthly_stats.index = monthly_stats.index.astype(str)
+
+        fig = go.Figure()
+
+        fig.add_trace(go.Bar(
+            x=monthly_stats.index,
+            y=monthly_stats['recordings'],
+            name='Recordings',
+            marker_color='#4CAF50'
+        ))
+
+        if 'sleep_score' in monthly_stats.columns:
+            fig.add_trace(go.Scatter(
+                x=monthly_stats.index,
+                y=monthly_stats['sleep_score'],
+                mode='lines+markers',
+                name='Avg Confidence',
+                yaxis='y2',
+                line=dict(color='#FF6B6B')
+            ))
+
+        fig.update_layout(
+            title="Monthly Recording Trends",
+            yaxis=dict(title="Number of Recordings"),
+            yaxis2=dict(title="Avg Confidence (%)", overlaying='y', side='right'),
+            height=400
+        )
+        st.plotly_chart(fig, use_container_width=True)
+
 def render():
     st.markdown('<div class="page-content fade-in">', unsafe_allow_html=True)
-    st.header("📊 Analytics — Upload history & trends")
+    st.header("📊 Advanced Sleep Analytics Dashboard")
 
-    if not os.path.exists(HISTORY_CSV):
-        st.info("No upload history found. Upload an audio file first to populate analytics.")
+    # Load all data sources
+    df = load_all_data()
+
+    if df.empty:
+        st.info("No sleep data found. Upload audio files or use real-time recording to populate analytics.")
         st.markdown('</div>', unsafe_allow_html=True)
         return
 
-    try:
-        df = pd.read_csv(HISTORY_CSV)
-    except Exception as e:
-        st.error(f"Failed to read history CSV: {e}")
-        st.markdown('</div>', unsafe_allow_html=True)
-        return
-
+    # Process timestamp column
     if "timestamp" in df.columns:
         df["timestamp"] = pd.to_datetime(df["timestamp"], errors="coerce")
     else:
