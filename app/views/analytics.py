@@ -540,7 +540,8 @@ def render():
                          title="Sleep Stage Distribution", hole=0.35,
                          color="label", color_discrete_map=color_map)
         fig_pie.update_traces(textposition="inside", textinfo="percent+label", sort=False)
-        st.plotly_chart(fig_pie, width='stretch', height=400, key="detailed_pie_chart")
+        fig_pie.update_layout(height=400)
+        st.plotly_chart(fig_pie, width='stretch', key="detailed_pie_chart")
     else:
         # Show empty state with all canonical labels
         empty_pie_df = pd.DataFrame({"label": CANONICAL_LABELS, "count": [0] * len(CANONICAL_LABELS)})
@@ -549,7 +550,8 @@ def render():
                          title="Sleep Stage Distribution (No Data Yet)", hole=0.35,
                          color="label", color_discrete_map=color_map)
         fig_pie.update_traces(textposition="inside", textinfo="label")
-        st.plotly_chart(fig_pie, width='stretch', height=400, key="detailed_pie_chart_empty")
+        fig_pie.update_layout(height=400)
+        st.plotly_chart(fig_pie, width='stretch', key="detailed_pie_chart_empty")
 
     # Average confidence by stage
     if "sleep_score" in df_filtered.columns:
@@ -571,7 +573,8 @@ def render():
                               labels={"timestamp": "Time", "sleep_score": "Confidence Score (%)"},
                               title="Confidence Score Timeline",
                               color_discrete_map=LABEL_COLORS)
-            fig_line.update_yaxes(range=[0,100], height=300)
+            fig_line.update_yaxes(range=[0,100])
+            fig_line.update_layout(height=300)
             st.plotly_chart(fig_line, width='stretch', key="confidence_timeline")
 
     # Recent recordings table
