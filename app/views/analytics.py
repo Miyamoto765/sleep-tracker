@@ -236,14 +236,13 @@ def create_trend_charts(df):
     df_time = df.dropna(subset=['timestamp']).copy()
     df_time = df_time.sort_values('timestamp')
 
-    # Confidence over time with trend line
+    # Confidence over time with scatter plot
     st.subheader("Sleep Score Trends")
     if 'sleep_score' in df_time.columns:
         fig = px.scatter(df_time, x='timestamp', y='sleep_score',
                         color='label', size='sleep_score',
                         title="Confidence Score Trends Over Time",
-                        color_discrete_map=LABEL_COLORS,
-                        trendline="lowess")
+                        color_discrete_map=LABEL_COLORS)
 
         fig.update_layout(height=400)
         st.plotly_chart(fig, width='stretch', key="sleep_score_trends")
