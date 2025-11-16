@@ -190,7 +190,7 @@ def create_overview_charts(df):
         fig.update_traces(textposition="inside", textinfo="percent+label",
                         hovertemplate="<b>%{label}</b><br>Count: %{value}<br>Percentage: %{percent}<extra></extra>")
         fig.update_layout(showlegend=True, height=400)
-        st.plotly_chart(fig, use_container_width=True, key="overview_pie_chart")
+        st.plotly_chart(fig, width='stretch', key="overview_pie_chart")
 
     with col2:
         # Confidence distribution
@@ -200,7 +200,7 @@ def create_overview_charts(df):
                              title="Distribution of Confidence Scores",
                              color='label', color_discrete_map=LABEL_COLORS)
             fig.update_layout(height=400)
-            st.plotly_chart(fig, use_container_width=True, key="confidence_distribution")
+            st.plotly_chart(fig, width='stretch', key="confidence_distribution")
         else:
             st.info("No confidence score data available.")
 
@@ -246,7 +246,7 @@ def create_trend_charts(df):
                         trendline="lowess")
 
         fig.update_layout(height=400)
-        st.plotly_chart(fig, use_container_width=True, key="sleep_score_trends")
+        st.plotly_chart(fig, width='stretch', key="sleep_score_trends")
 
     # Daily/hourly patterns
     col1, col2 = st.columns(2)
@@ -260,7 +260,7 @@ def create_trend_charts(df):
                            title="Recording Distribution by Hour",
                            color_discrete_map=LABEL_COLORS)
         fig_hourly.update_layout(height=350)
-        st.plotly_chart(fig_hourly, use_container_width=True, key="hourly_distribution")
+        st.plotly_chart(fig_hourly, width='stretch', key="hourly_distribution")
 
     with col2:
         # Day of week distribution
@@ -271,7 +271,7 @@ def create_trend_charts(df):
                         title="Recordings by Day of Week",
                         labels={'x': 'Day of Week', 'y': 'Number of Recordings'})
         fig_day.update_layout(height=350)
-        st.plotly_chart(fig_day, use_container_width=True, key="day_of_week_distribution")
+        st.plotly_chart(fig_day, width='stretch', key="day_of_week_distribution")
 
 def create_pattern_charts(df):
     """Create pattern recognition charts."""
@@ -287,7 +287,7 @@ def create_pattern_charts(df):
                        color_continuous_scale="RdBu",
                        aspect="auto")
         fig.update_layout(height=400)
-        st.plotly_chart(fig, use_container_width=True, key="correlation_matrix")
+        st.plotly_chart(fig, width='stretch', key="correlation_matrix")
 
     # Sleep stage transitions (if we have sequential data)
     if 'timestamp' in df.columns and len(df) > 1:
@@ -310,7 +310,7 @@ def create_pattern_charts(df):
                            labels=dict(x="Next Stage", y="Current Stage", color="Transitions"),
                            color_continuous_scale="Viridis")
             fig.update_layout(height=400)
-            st.plotly_chart(fig, use_container_width=True, key="transition_heatmap")
+            st.plotly_chart(fig, width='stretch', key="transition_heatmap")
 
 def create_calendar_charts(df):
     """Create calendar-based visualizations."""
@@ -339,7 +339,7 @@ def create_calendar_charts(df):
                    color_continuous_scale="Blues",
                    aspect="auto")
     fig.update_layout(height=300)
-    st.plotly_chart(fig, use_container_width=True, key="weekly_heatmap")
+    st.plotly_chart(fig, width='stretch', key="weekly_heatmap")
 
     # Monthly summary
     df_time['month'] = df_time['timestamp'].dt.to_period('M')
@@ -377,7 +377,7 @@ def create_calendar_charts(df):
             yaxis2=dict(title="Avg Confidence (%)", overlaying='y', side='right'),
             height=400
         )
-        st.plotly_chart(fig, use_container_width=True, key="monthly_trends")
+        st.plotly_chart(fig, width='stretch', key="monthly_trends")
 
 def render():
     st.markdown('<div class="page-content fade-in">', unsafe_allow_html=True)
@@ -492,7 +492,7 @@ def render():
                          title="Sleep Stage Distribution", hole=0.35,
                          color="label", color_discrete_map=color_map)
         fig_pie.update_traces(textposition="inside", textinfo="percent+label", sort=False)
-        st.plotly_chart(fig_pie, use_container_width=True, height=400, key="detailed_pie_chart")
+        st.plotly_chart(fig_pie, width='stretch', height=400, key="detailed_pie_chart")
 
     # Average confidence by stage
     if "sleep_score" in df_filtered.columns:
@@ -503,7 +503,7 @@ def render():
                            title="Average Confidence by Sleep Stage",
                            color="label", color_discrete_map=LABEL_COLORS)
             fig_bar.update_layout(xaxis_range=[0,100], showlegend=False, height=300)
-            st.plotly_chart(fig_bar, use_container_width=True, key="avg_confidence_bar")
+            st.plotly_chart(fig_bar, width='stretch', key="avg_confidence_bar")
 
     # Time series analysis
     if "sleep_score" in df_filtered.columns and df_filtered["sleep_score"].notna().any():
@@ -515,7 +515,7 @@ def render():
                               title="Confidence Score Timeline",
                               color_discrete_map=LABEL_COLORS)
             fig_line.update_yaxes(range=[0,100], height=300)
-            st.plotly_chart(fig_line, use_container_width=True, key="confidence_timeline")
+            st.plotly_chart(fig_line, width='stretch', key="confidence_timeline")
 
     # Recent recordings table
     with st.expander("📊 Recent Recordings", expanded=False):
@@ -528,7 +528,7 @@ def render():
         if "timestamp" in recent_table.columns:
             recent_table["timestamp"] = recent_table["timestamp"].dt.strftime('%Y-%m-%d %H:%M')
 
-        st.dataframe(recent_table, use_container_width=True)
+        st.dataframe(recent_table, width='stretch')
 
     # Export functionality
     with st.expander("💾 Export Options"):

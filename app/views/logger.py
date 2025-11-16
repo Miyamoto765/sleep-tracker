@@ -18,6 +18,6 @@ def render():
             time.sleep(0.01)
         df = pd.DataFrame(simulated)
         fig = px.line(df, x="time", y="accel_g", title="Simulated Motion Log")
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width='stretch')
 
     st.markdown('</div></div>', unsafe_allow_html=True)
