@@ -30,34 +30,6 @@ def render():
         <li><b>Analyze</b> — A trained model scores the recording and returns a sleep-cluster & quality score.</li>
         <li><b>Track</b> — Use the Logger to record motion or run a simulation and monitor trends in Analytics.</li>
       </ol>
-
-      <div style="margin-top:16px;">
-        <form action="#" method="get">
-          <button type="submit"
-            style="background:linear-gradient(90deg,#00dfd8,#7c3aed);
-                   color:white;border:none;padding:10px 18px;
-                   border-radius:8px;font-weight:700;
-                   box-shadow:0 0 8px rgba(0,223,216,0.4);
-                   transition:all 0.3s ease;"
-            onmouseover="this.style.boxShadow='0 0 14px rgba(124,58,237,0.6)'"
-            onmouseout="this.style.boxShadow='0 0 8px rgba(0,223,216,0.4)'"
-            onclick="window.location.href = window.location.pathname + '?page=Upload'; return false;">
-            🚀 Start Upload
-          </button>
-        </form>
-      </div>
-
-      <!-- hidden iframe for legacy postMessage (kept as-is but not required) -->
-      <iframe style="display:none;">
-      <script>
-      window.addEventListener('message', (event) => {
-        if(event.data && event.data.type === 'NAV_UPLOAD'){
-          const streamlit = window.parent || window;
-          streamlit.dispatchEvent(new Event('NAV_UPLOAD'));
-        }
-      });
-      </script>
-      </iframe>
     </div>
     """, unsafe_allow_html=True)
 

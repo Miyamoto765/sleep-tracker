@@ -62,30 +62,72 @@ def load_all_data():
     # Load upload history
     if os.path.exists(HISTORY_CSV):
         try:
-            df_upload = pd.read_csv(HISTORY_CSV)
-            df_upload['data_source'] = 'upload'
-            dfs.append(df_upload)
+            # Try reading with error handling for malformed CSV
+            df_upload = pd.read_csv(HISTORY_CSV, on_bad_lines='skip', engine='python')
+            if not df_upload.empty:
+                df_upload['data_source'] = 'upload'
+                dfs.append(df_upload)
         except Exception as e:
-            st.error(f"Failed to read upload history: {e}")
+            try:
+                # Fallback: try with skip bad lines
+                df_upload = pd.read_csv(HISTORY_CSV, on_bad_lines='skip', sep=',', quoting=1, skipinitialspace=True)
+                if not df_upload.empty:
+                    df_upload['data_source'] = 'upload'
+                    dfs.append(df_upload)
+            except Exception as e2:
+                st.warning(f"Failed to read upload history: {e}. Attempting manual fix...")
+                # Last resort: try to fix manually
+                try:
+                    with open(HISTORY_CSV, 'r', encoding='utf-8') as f:
+                        lines = f.readlines()
+                    # Clean lines - remove lines with wrong field count
+                    header = lines[0] if lines else None
+                    if header:
+                        expected_fields = len(header.split(','))
+                        clean_lines = [header]
+                        for line in lines[1:]:
+                            if len(line.split(',')) == expected_fields:
+                                clean_lines.append(line)
+                        if len(clean_lines) > 1:
+                            import io
+                            df_upload = pd.read_csv(io.StringIO(''.join(clean_lines)))
+                            df_upload['data_source'] = 'upload'
+                            dfs.append(df_upload)
+                except Exception as e3:
+                    st.error(f"Could not recover upload history: {e3}")
 
     # Load real-time history
     if os.path.exists(REALTIME_HISTORY_CSV):
         try:
-            df_realtime = pd.read_csv(REALTIME_HISTORY_CSV)
-            df_realtime['data_source'] = 'realtime'
-            # Rename columns to match upload format
-            if 'confidence' in df_realtime.columns:
-                df_realtime = df_realtime.rename(columns={'confidence': 'sleep_score'})
-            if 'prediction' in df_realtime.columns:
-                df_realtime = df_realtime.rename(columns={'prediction': 'label'})
-            dfs.append(df_realtime)
+            # Try reading with error handling for malformed CSV
+            df_realtime = pd.read_csv(REALTIME_HISTORY_CSV, on_bad_lines='skip', engine='python')
+            if not df_realtime.empty:
+                df_realtime['data_source'] = 'realtime'
+                # Rename columns to match upload format
+                if 'confidence' in df_realtime.columns:
+                    df_realtime = df_realtime.rename(columns={'confidence': 'sleep_score'})
+                if 'prediction' in df_realtime.columns:
+                    df_realtime = df_realtime.rename(columns={'prediction': 'label'})
+                dfs.append(df_realtime)
         except Exception as e:
-            st.error(f"Failed to read real-time history: {e}")
+            try:
+                # Fallback: try with skip bad lines
+                df_realtime = pd.read_csv(REALTIME_HISTORY_CSV, on_bad_lines='skip', sep=',', quoting=1, skipinitialspace=True)
+                if not df_realtime.empty:
+                    df_realtime['data_source'] = 'realtime'
+                    if 'confidence' in df_realtime.columns:
+                        df_realtime = df_realtime.rename(columns={'confidence': 'sleep_score'})
+                    if 'prediction' in df_realtime.columns:
+                        df_realtime = df_realtime.rename(columns={'prediction': 'label'})
+                    dfs.append(df_realtime)
+            except Exception as e2:
+                st.warning(f"Failed to read real-time history: {e2}")
 
     # Load database data
     try:
         session_manager = get_session_manager()
-        df_db = session_manager.get_recent_predictions(days=90, limit=100)
+        # Convert 90 days to hours (90 * 24 = 2160 hours)
+        df_db = session_manager.get_recent_predictions(hours=2160, limit=100)
         if not df_db.empty:
             df_db['data_source'] = 'database'
             # Rename columns to match format
@@ -148,7 +190,7 @@ def create_overview_charts(df):
         fig.update_traces(textposition="inside", textinfo="percent+label",
                         hovertemplate="<b>%{label}</b><br>Count: %{value}<br>Percentage: %{percent}<extra></extra>")
         fig.update_layout(showlegend=True, height=400)
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, use_container_width=True, key="overview_pie_chart")
 
     with col2:
         # Confidence distribution
@@ -158,7 +200,7 @@ def create_overview_charts(df):
                              title="Distribution of Confidence Scores",
                              color='label', color_discrete_map=LABEL_COLORS)
             fig.update_layout(height=400)
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, use_container_width=True, key="confidence_distribution")
         else:
             st.info("No confidence score data available.")
 
@@ -204,7 +246,7 @@ def create_trend_charts(df):
                         trendline="lowess")
 
         fig.update_layout(height=400)
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, use_container_width=True, key="sleep_score_trends")
 
     # Daily/hourly patterns
     col1, col2 = st.columns(2)
@@ -218,7 +260,7 @@ def create_trend_charts(df):
                            title="Recording Distribution by Hour",
                            color_discrete_map=LABEL_COLORS)
         fig_hourly.update_layout(height=350)
-        st.plotly_chart(fig_hourly, use_container_width=True)
+        st.plotly_chart(fig_hourly, use_container_width=True, key="hourly_distribution")
 
     with col2:
         # Day of week distribution
@@ -229,7 +271,7 @@ def create_trend_charts(df):
                         title="Recordings by Day of Week",
                         labels={'x': 'Day of Week', 'y': 'Number of Recordings'})
         fig_day.update_layout(height=350)
-        st.plotly_chart(fig_day, use_container_width=True)
+        st.plotly_chart(fig_day, use_container_width=True, key="day_of_week_distribution")
 
 def create_pattern_charts(df):
     """Create pattern recognition charts."""
@@ -245,7 +287,7 @@ def create_pattern_charts(df):
                        color_continuous_scale="RdBu",
                        aspect="auto")
         fig.update_layout(height=400)
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, use_container_width=True, key="correlation_matrix")
 
     # Sleep stage transitions (if we have sequential data)
     if 'timestamp' in df.columns and len(df) > 1:
@@ -268,7 +310,7 @@ def create_pattern_charts(df):
                            labels=dict(x="Next Stage", y="Current Stage", color="Transitions"),
                            color_continuous_scale="Viridis")
             fig.update_layout(height=400)
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, use_container_width=True, key="transition_heatmap")
 
 def create_calendar_charts(df):
     """Create calendar-based visualizations."""
@@ -297,7 +339,7 @@ def create_calendar_charts(df):
                    color_continuous_scale="Blues",
                    aspect="auto")
     fig.update_layout(height=300)
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, use_container_width=True, key="weekly_heatmap")
 
     # Monthly summary
     df_time['month'] = df_time['timestamp'].dt.to_period('M')
@@ -335,7 +377,7 @@ def create_calendar_charts(df):
             yaxis2=dict(title="Avg Confidence (%)", overlaying='y', side='right'),
             height=400
         )
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, use_container_width=True, key="monthly_trends")
 
 def render():
     st.markdown('<div class="page-content fade-in">', unsafe_allow_html=True)
@@ -450,7 +492,7 @@ def render():
                          title="Sleep Stage Distribution", hole=0.35,
                          color="label", color_discrete_map=color_map)
         fig_pie.update_traces(textposition="inside", textinfo="percent+label", sort=False)
-        st.plotly_chart(fig_pie, use_container_width=True, height=400)
+        st.plotly_chart(fig_pie, use_container_width=True, height=400, key="detailed_pie_chart")
 
     # Average confidence by stage
     if "sleep_score" in df_filtered.columns:
@@ -461,7 +503,7 @@ def render():
                            title="Average Confidence by Sleep Stage",
                            color="label", color_discrete_map=LABEL_COLORS)
             fig_bar.update_layout(xaxis_range=[0,100], showlegend=False, height=300)
-            st.plotly_chart(fig_bar, use_container_width=True)
+            st.plotly_chart(fig_bar, use_container_width=True, key="avg_confidence_bar")
 
     # Time series analysis
     if "sleep_score" in df_filtered.columns and df_filtered["sleep_score"].notna().any():
@@ -473,7 +515,7 @@ def render():
                               title="Confidence Score Timeline",
                               color_discrete_map=LABEL_COLORS)
             fig_line.update_yaxes(range=[0,100], height=300)
-            st.plotly_chart(fig_line, use_container_width=True)
+            st.plotly_chart(fig_line, use_container_width=True, key="confidence_timeline")
 
     # Recent recordings table
     with st.expander("📊 Recent Recordings", expanded=False):

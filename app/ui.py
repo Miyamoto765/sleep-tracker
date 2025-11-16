@@ -30,11 +30,28 @@ def apply_css():
         html, body, [class*="css"] { font-family: 'Poppins', sans-serif; color: #E9F2F3; }
 
         [data-testid="stAppViewContainer"] {
-          background: radial-gradient(circle at 12% 12%, rgba(0,215,178,0.06), transparent 12%),
-                      radial-gradient(circle at 90% 88%, rgba(124,58,237,0.04), transparent 12%),
-                      linear-gradient(180deg, #071021 0%, #081428 35%, #0b1b2a 100%);
+          background: 
+            radial-gradient(circle at 10% 20%, rgba(0,223,216,0.08), transparent 20%),
+            radial-gradient(circle at 90% 80%, rgba(124,58,237,0.08), transparent 20%),
+            radial-gradient(circle at 50% 50%, rgba(0,143,251,0.03), transparent 30%),
+            linear-gradient(135deg, #0a0e1a 0%, #0d1526 25%, #0f1a2e 50%, #0a1421 75%, #081428 100%);
           min-height: 100vh;
           padding: 28px 36px;
+          position: relative;
+        }
+        
+        [data-testid="stAppViewContainer"]::before {
+          content: '';
+          position: fixed;
+          top: 0;
+          left: 0;
+          right: 0;
+          bottom: 0;
+          background: 
+            repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,223,216,0.02) 2px, rgba(0,223,216,0.02) 4px),
+            repeating-linear-gradient(90deg, transparent, transparent 2px, rgba(124,58,237,0.02) 2px, rgba(124,58,237,0.02) 4px);
+          pointer-events: none;
+          z-index: 0;
         }
 
         /* Responsive Design */
@@ -79,65 +96,119 @@ def apply_css():
         }
 
         .nav-container {
-          background: linear-gradient(90deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));
-          border: 1px solid rgba(255,255,255,0.03);
-          box-shadow: 0 10px 30px rgba(2,6,23,0.5);
-          padding: 14px 22px;
-          border-radius: 14px;
+          background: linear-gradient(135deg, 
+            rgba(0,223,216,0.08) 0%, 
+            rgba(124,58,237,0.08) 50%,
+            rgba(0,143,251,0.06) 100%);
+          border: 1px solid rgba(255,255,255,0.1);
+          box-shadow: 
+            0 8px 32px rgba(0,0,0,0.4),
+            0 0 0 1px rgba(255,255,255,0.05) inset,
+            0 2px 8px rgba(0,223,216,0.1);
+          padding: 16px 28px;
+          border-radius: 16px;
           display:flex;
           align-items:center;
           gap:20px;
           position: sticky;
           top: 8px;
           z-index: 9999;
-          backdrop-filter: blur(6px);
-          margin-bottom: 18px;
+          backdrop-filter: blur(12px) saturate(180%);
+          margin-bottom: 24px;
           flex-wrap: wrap;
           justify-content: space-between;
         }
 
-        .nav-title { display:flex; gap:10px; align-items:center; font-weight:700; color:#e6f8f5; }
-        .nav-title .logo { width:40px; height:40px; display:inline-flex; align-items:center; justify-content:center; border-radius:8px; background: linear-gradient(90deg,#7c3aed33,#00dfd833); font-size:18px; }
+        .nav-title { 
+          display:flex; 
+          gap:12px; 
+          align-items:center; 
+          font-weight:700; 
+          color:#ffffff;
+          text-shadow: 0 2px 8px rgba(0,223,216,0.3);
+          font-size: 20px;
+        }
+        .nav-title .logo { 
+          width:44px; 
+          height:44px; 
+          display:inline-flex; 
+          align-items:center; 
+          justify-content:center; 
+          border-radius:12px; 
+          background: linear-gradient(135deg, rgba(0,223,216,0.2), rgba(124,58,237,0.2)); 
+          font-size:20px;
+          box-shadow: 
+            0 4px 12px rgba(0,223,216,0.2),
+            0 0 0 1px rgba(255,255,255,0.1) inset;
+          border: 1px solid rgba(255,255,255,0.15);
+        }
 
         /* Enhanced button styles with better mobile support */
         div[data-testid="stButton"] > button {
-          background: transparent;
-          color: #cfeff0;
-          border-radius: 10px;
-          border: 1px solid rgba(255,255,255,0.04);
-          padding: 10px 26px;
+          background: linear-gradient(135deg, rgba(255,255,255,0.05), rgba(255,255,255,0.02));
+          color: #e0f7f8;
+          border-radius: 12px;
+          border: 1px solid rgba(255,255,255,0.08);
+          padding: 12px 28px;
           font-size: 16px;
           font-weight: 600;
-          transition: all 180ms ease;
-          min-height: 44px; /* Touch-friendly size */
+          transition: all 250ms cubic-bezier(0.4, 0, 0.2, 1);
+          min-height: 44px;
           display: flex;
           align-items: center;
           justify-content: center;
+          box-shadow: 
+            0 2px 8px rgba(0,0,0,0.2),
+            0 0 0 1px rgba(255,255,255,0.05) inset;
         }
 
         div[data-testid="stButton"] > button:hover {
-          transform: translateY(-4px);
-          color: #fff;
-          box-shadow: 0 6px 20px rgba(0,0,0,0.45);
+          transform: translateY(-3px);
+          color: #ffffff;
+          background: linear-gradient(135deg, rgba(0,223,216,0.15), rgba(124,58,237,0.12));
+          border-color: rgba(0,223,216,0.3);
+          box-shadow: 
+            0 8px 24px rgba(0,0,0,0.3),
+            0 0 20px rgba(0,223,216,0.15),
+            0 0 0 1px rgba(255,255,255,0.1) inset;
         }
 
         div[data-testid="stButton"] > button:focus {
-          outline: 2px solid rgba(0,223,216,0.5);
-          outline-offset: 2px;
+          outline: 2px solid rgba(0,223,216,0.6);
+          outline-offset: 3px;
         }
 
         .nav-active {
-          background: linear-gradient(90deg,#00dfd8,#7c3aed) !important;
+          background: linear-gradient(135deg, #00dfd8, #7c3aed) !important;
           color: white !important;
-          box-shadow: 0 10px 30px rgba(124,58,237,0.18) !important;
+          box-shadow: 
+            0 8px 32px rgba(124,58,237,0.3),
+            0 4px 16px rgba(0,223,216,0.25),
+            0 0 0 1px rgba(255,255,255,0.2) inset !important;
           transform: translateY(-2px) !important;
-          animation: glow 2s infinite;
+          border-color: rgba(255,255,255,0.3) !important;
+          animation: glow 3s ease-in-out infinite;
         }
 
         @keyframes glow {
-          0% { box-shadow: 0 0 6px rgba(0,223,216,0.12); }
-          50% { box-shadow: 0 0 18px rgba(124,58,237,0.18); }
-          100% { box-shadow: 0 0 6px rgba(0,223,216,0.12); }
+          0% { 
+            box-shadow: 
+              0 8px 32px rgba(124,58,237,0.3),
+              0 4px 16px rgba(0,223,216,0.25),
+              0 0 0 1px rgba(255,255,255,0.2) inset;
+          }
+          50% { 
+            box-shadow: 
+              0 12px 40px rgba(124,58,237,0.4),
+              0 6px 20px rgba(0,223,216,0.35),
+              0 0 0 1px rgba(255,255,255,0.3) inset;
+          }
+          100% { 
+            box-shadow: 
+              0 8px 32px rgba(124,58,237,0.3),
+              0 4px 16px rgba(0,223,216,0.25),
+              0 0 0 1px rgba(255,255,255,0.2) inset;
+          }
         }
 
         .page-content {
@@ -151,19 +222,50 @@ def apply_css():
         }
 
         .app-card {
-          background: rgba(255,255,255,0.03);
-          backdrop-filter: blur(10px);
-          border-radius: 12px;
-          padding: 20px;
-          margin-bottom: 20px;
-          border:1px solid rgba(255,255,255,0.04);
-          box-shadow: 0 8px 26px rgba(0,0,0,0.35);
-          transition: all 300ms ease;
+          background: linear-gradient(135deg, 
+            rgba(255,255,255,0.06) 0%, 
+            rgba(255,255,255,0.03) 100%);
+          backdrop-filter: blur(16px) saturate(180%);
+          border-radius: 16px;
+          padding: 28px;
+          margin-bottom: 24px;
+          border: 1px solid rgba(255,255,255,0.1);
+          box-shadow: 
+            0 8px 32px rgba(0,0,0,0.3),
+            0 0 0 1px rgba(255,255,255,0.05) inset,
+            0 2px 8px rgba(0,223,216,0.05);
+          transition: all 350ms cubic-bezier(0.4, 0, 0.2, 1);
+          position: relative;
+          overflow: hidden;
+        }
+        
+        .app-card::before {
+          content: '';
+          position: absolute;
+          top: 0;
+          left: 0;
+          right: 0;
+          height: 2px;
+          background: linear-gradient(90deg, 
+            transparent, 
+            rgba(0,223,216,0.3), 
+            rgba(124,58,237,0.3), 
+            transparent);
+          opacity: 0;
+          transition: opacity 350ms ease;
         }
 
         .app-card:hover {
-          transform: translateY(-2px);
-          box-shadow: 0 12px 32px rgba(0,0,0,0.4);
+          transform: translateY(-4px);
+          box-shadow: 
+            0 12px 40px rgba(0,0,0,0.4),
+            0 0 0 1px rgba(255,255,255,0.08) inset,
+            0 4px 16px rgba(0,223,216,0.1);
+          border-color: rgba(0,223,216,0.2);
+        }
+        
+        .app-card:hover::before {
+          opacity: 1;
         }
 
         /* Audio recorder specific styles */
@@ -187,14 +289,20 @@ def apply_css():
         }
 
         .app-footer {
-          margin-top: 36px;
-          padding: 18px 12px;
-          border-radius: 10px;
-          color: #bcdfe0;
-          background: linear-gradient(90deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));
-          border: 1px solid rgba(255,255,255,0.03);
+          margin-top: 48px;
+          padding: 20px 16px;
+          border-radius: 12px;
+          color: #b8dde0;
+          background: linear-gradient(135deg, 
+            rgba(255,255,255,0.04) 0%, 
+            rgba(255,255,255,0.02) 100%);
+          border: 1px solid rgba(255,255,255,0.08);
           text-align: center;
           font-size: 14px;
+          backdrop-filter: blur(8px);
+          box-shadow: 
+            0 4px 16px rgba(0,0,0,0.2),
+            0 0 0 1px rgba(255,255,255,0.05) inset;
         }
 
         footer { visibility: hidden; }

@@ -366,132 +366,59 @@ def render():
 
     display_realtime_history()
 
-    # Create tabs for recording options
-    tab1, tab2 = st.tabs(["🎤 Live Recording", "📁 File Upload"])
+    # Live Recording Section (no upload tab - upload is in navigation)
+    st.markdown("### 🎤 Browser Microphone Recording")
+    st.markdown("Click 'Start Recording' to begin capturing audio from your microphone for real-time sleep pattern analysis.")
 
-    with tab1:
-        st.markdown("### Browser Microphone Recording")
-        st.markdown("Click 'Start Recording' to begin capturing audio from your microphone.")
+    # Render audio recorder component
+    st.components.v1.html(audio_recorder_component(), height=300)
 
-        # Render audio recorder component
-        st.components.v1.html(audio_recorder_component(), height=300)
+    # Get audio data from component
+    audio_data = st.session_state.get('audio_data', None)
 
-        # Get audio data from component
-        audio_data = st.session_state.get('audio_data', None)
+    if audio_data:
+        st.success("Audio recorded successfully! Processing...")
 
-        if audio_data:
-            st.success("Audio recorded successfully! Processing...")
+        with st.spinner("Analyzing audio for sleep patterns..."):
+            temp_path, filename, prediction, confidence = process_audio_data(
+                audio_data, model, scaler, feature_cols
+            )
 
-            with st.spinner("Analyzing audio for sleep patterns..."):
-                temp_path, filename, prediction, confidence = process_audio_data(
-                    audio_data, model, scaler, feature_cols
-                )
+            if prediction:
+                # Display results
+                col1, col2 = st.columns(2)
+                with col1:
+                    st.metric("Predicted Sleep Stage", prediction)
+                with col2:
+                    st.metric("Confidence", f"{int(confidence)}%")
 
-                if prediction:
-                    # Display results
-                    col1, col2 = st.columns(2)
-                    with col1:
-                        st.metric("Predicted Sleep Stage", prediction)
-                    with col2:
-                        st.metric("Confidence", f"{int(confidence)}%")
+                # Sleep score visualization
+                st.markdown("### 🧠 Sleep Analysis Results")
 
-                    # Sleep score visualization
-                    st.markdown("### 🧠 Sleep Analysis Results")
+                # Create gauge chart for confidence
+                fig, ax = plt.subplots(figsize=(8, 3))
+                ax.barh([0], [confidence], height=0.3, color='#4CAF50', alpha=0.7)
+                ax.set_xlim(0, 100)
+                ax.set_xlabel('Confidence Score (%)')
+                ax.set_title(f'Stage Prediction Confidence: {prediction}')
+                ax.set_yticks([])
+                ax.grid(True, alpha=0.3)
+                st.pyplot(fig)
 
-                    # Create gauge chart for confidence
-                    fig, ax = plt.subplots(figsize=(8, 3))
-                    ax.barh([0], [confidence], height=0.3, color='#4CAF50', alpha=0.7)
-                    ax.set_xlim(0, 100)
-                    ax.set_xlabel('Confidence Score (%)')
-                    ax.set_title(f'Stage Prediction Confidence: {prediction}')
-                    ax.set_yticks([])
-                    ax.grid(True, alpha=0.3)
-                    st.pyplot(fig)
-
-                    # Audio playback
-                    if temp_path and os.path.exists(temp_path):
-                        st.markdown("### 🎶 Your Recording")
-                        st.audio(temp_path)
-
-                        # Save to history
-                        save_realtime_recording(audio_data, filename, prediction, confidence)
-
-                        # Clear audio data from session
-                        if 'audio_data' in st.session_state:
-                            del st.session_state['audio_data']
-
-                else:
-                    st.error("Failed to process audio. Please try recording again.")
-
-    with tab2:
-        st.markdown("### Traditional File Upload")
-        st.markdown("Upload an audio file if you prefer the traditional method.")
-
-        uploaded_file = st.file_uploader("Choose audio file", type=["wav", "mp3", "flac", "ogg"])
-
-        if uploaded_file is not None:
-            # Process uploaded file (reuse upload.py logic)
-            ext = uploaded_file.name.split(".")[-1].lower()
-            safe_fn = f"upload_{datetime.now().strftime('%Y%m%d_%H%M%S')}_{uploaded_file.name}"
-            saved_path = os.path.join(RECORDINGS_DIR, safe_fn)
-
-            with open(saved_path, "wb") as f:
-                f.write(uploaded_file.getbuffer())
-
-            st.success(f"File uploaded: `{safe_fn}`")
-
-            # Convert to WAV if needed
-            if ext != "wav":
-                st.info("Converting to WAV...")
-                from pydub import AudioSegment
-                try:
-                    sound = AudioSegment.from_file(saved_path)
-                    wav_path = saved_path.rsplit(".", 1)[0] + ".wav"
-                    sound.export(wav_path, format="wav")
-                    proc_path = wav_path
-                except Exception as e:
-                    st.error(f"Conversion failed: {e}")
-                    return
-            else:
-                proc_path = saved_path
-
-            # Process and predict
-            with st.spinner("Analyzing audio..."):
-                features = extract_features(proc_path)
-                if features is not None:
-                    # Align features
-                    if isinstance(features, (list, np.ndarray)) and feature_cols:
-                        row_feats = list(features)[:len(feature_cols)]
-                    elif isinstance(features, dict) and feature_cols:
-                        row_feats = [features.get(c, np.nan) for c in feature_cols]
-                    else:
-                        row_feats = list(features) if isinstance(features, (list, np.ndarray)) else list(features.values())
-
-                    X_df = pd.DataFrame([row_feats], columns=feature_cols) if feature_cols else pd.DataFrame([row_feats])
-                    Xs = scaler.transform(X_df)
-                    pred_raw = model.predict(Xs)[0]
-
-                    if hasattr(model, "predict_proba"):
-                        proba = model.predict_proba(Xs)[0]
-                        confidence = float(proba.max() * 100)
-                    else:
-                        confidence = 50.0
-
-                    label = map_prediction_to_label(pred_raw)
-
-                    # Display results
-                    col1, col2 = st.columns(2)
-                    with col1:
-                        st.metric("Predicted Sleep Stage", label)
-                    with col2:
-                        st.metric("Confidence", f"{int(confidence)}%")
-
-                    st.audio(proc_path)
+                # Audio playback
+                if temp_path and os.path.exists(temp_path):
+                    st.markdown("### 🎶 Your Recording")
+                    st.audio(temp_path)
 
                     # Save to history
-                    save_realtime_recording("", safe_fn, label, confidence)
-                else:
-                    st.error("Failed to extract features from audio.")
+                    save_realtime_recording(audio_data, filename, prediction, confidence)
+
+                    # Clear audio data from session
+                    if 'audio_data' in st.session_state:
+                        del st.session_state['audio_data']
+
+            else:
+                st.error("Failed to process audio. Please try recording again.")
 
     # Add tips section
     with st.expander("💡 Tips for Best Results"):
