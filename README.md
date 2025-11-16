@@ -77,7 +77,7 @@ This project includes an automatic Git pull script that keeps your local VS Code
 
 ### Setup (Windows only)
 
-A Windows Scheduled Task named `SleepTracker_AutoGitPull` has been configured to run the sync script every 5 minutes. No additional setup is required — it runs automatically in the background.
+A Windows Scheduled Task named `SleepTracker_AutoGitPull` can be configured to start the sync script at user logon. The script polls the remote every 30 seconds by default, so the task needs only to start the long-running script once (recommended).
 
 #### Manual Testing
 
@@ -85,11 +85,11 @@ To test the sync script directly:
 
 ```powershell
 cd "C:\Users\ahmed\OneDrive\Desktop\sleep-tracker\scripts"
-powershell -NoProfile -ExecutionPolicy Bypass -File ".\autopull.ps1" -IntervalSeconds 5
+powershell -NoProfile -ExecutionPolicy Bypass -File ".\autopull.ps1" -IntervalSeconds 30
 ```
 
 The script will:
-- Fetch remote changes every 5 seconds (for testing)
+- Fetch remote changes every 30 seconds (for testing)
 - Pull automatically if your local branch is clean and behind the remote
 - Skip pulling if you have uncommitted changes or if branches have diverged (safe behavior)
 - Log all activity to `scripts/autopull.log`
@@ -115,7 +115,7 @@ schtasks /Delete /TN "SleepTracker_AutoGitPull" /F
 
 ### How It Works
 
-- **Every 5 minutes**, the `scripts/autopull.ps1` script runs and checks for remote changes.
+- The `scripts/autopull.ps1` script polls the remote every 30 seconds by default and checks for remote changes.
 - If your local branch is **clean** (no uncommitted changes) and **strictly behind** the remote, it performs a fast-forward pull (`git pull --ff-only`).
 - If you have uncommitted changes or the branches have diverged, the script logs a message and skips the pull to prevent conflicts.
 - All activity is logged to `scripts/autopull.log` for debugging.
@@ -141,8 +141,8 @@ remote changes into your local copy when it is clean and strictly behind the rem
 environments where you want remote changes to appear locally automatically (for example CI agents or single-user
 workstations).
 
-- Script path: `scripts/autopull.ps1`
-- Scheduled task: `SleepTracker_AutoGitPull` (runs every 5 minutes)
+-- Script path: `scripts/autopull.ps1`
+-- Scheduled task: `SleepTracker_AutoGitPull` (recommended: run at logon; script polls every 30s)
 
 How it works
 - The script fetches `origin`, checks whether your current branch is clean and strictly behind the upstream, and
