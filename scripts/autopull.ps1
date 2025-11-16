@@ -4,7 +4,7 @@
 
 param(
     [string]$RepoPath = "C:\Users\ahmed\OneDrive\Desktop\sleep-tracker",
-    [int]$IntervalSeconds = 300
+    [int]$IntervalSeconds = 30
 )
 
 # Log file inside the repo scripts folder
@@ -72,6 +72,7 @@ function Run-Once {
 }
 
 # Simple infinite loop with interval
+Log "Starting autopull loop (interval ${IntervalSeconds}s)."
 while ($true) {
     try { Run-Once } catch { Log "Error during run: $_" }
     Start-Sleep -Seconds $IntervalSeconds
