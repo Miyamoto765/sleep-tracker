@@ -1,0 +1,14 @@
+# Required Arduino Libraries
+# Install via Arduino IDE: Tools → Manage Libraries
+
+# For Arduino UNO:
+Adafruit_SSD1306
+Adafruit_GFX
+SparkFun_MAX3010x_Sensor_Library
+MPU6050_light
+
+# For ESP32:
+# Built-in libraries (no installation needed):
+# - WiFi
+# - driver/i2s.h
+

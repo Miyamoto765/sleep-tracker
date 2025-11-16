@@ -30,3 +30,6 @@ logging
 
 # File handling
 python-multipart>=0.0.6
+
+# Serial communication for Arduino/ESP32
+pyserial>=3.5

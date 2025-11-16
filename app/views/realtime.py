@@ -11,6 +11,12 @@ import librosa
 import matplotlib.pyplot as plt
 from datetime import datetime
 from src.feature_extraction import extract_features
+import sys
+sys.path.append(os.path.join(os.path.dirname(__file__), '../../python'))
+try:
+    from sensor_manager import SensorManager
+except ImportError:
+    SensorManager = None
 
 # Configuration
 MODEL_PATH = "models/rf_model.joblib"
@@ -365,6 +371,202 @@ def render():
         return
 
     display_realtime_history()
+
+    # Sensor Connection Section
+    st.markdown("### 🔌 Sensor Connection Status")
+    
+    # Initialize sensor manager in session state
+    if 'sensor_manager' not in st.session_state:
+        if SensorManager:
+            st.session_state.sensor_manager = SensorManager()
+        else:
+            st.session_state.sensor_manager = None
+    
+    sensor_manager = st.session_state.sensor_manager
+    
+    if sensor_manager is None:
+        st.warning("⚠️ Sensor Manager not available. Please ensure pyserial is installed: `pip install pyserial`")
+    else:
+        # Scan for available ports
+        with st.expander("🔍 Scan & Connect Sensors", expanded=True):
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                st.subheader("Arduino UNO")
+                st.caption("Sensors: MAX30102 (PPG), MPU6050 (Motion), SSD1306 (OLED)")
+                
+                if st.button("🔍 Scan Ports", key="scan_arduino"):
+                    ports = sensor_manager.scan_ports()
+                    if ports:
+                        st.session_state.arduino_ports = [p['device'] for p in ports]
+                        st.session_state.arduino_port_info = {p['device']: p['description'] for p in ports}
+                    else:
+                        st.warning("No serial ports found")
+                
+                if 'arduino_ports' in st.session_state and st.session_state.arduino_ports:
+                    selected_arduino = st.selectbox(
+                        "Select Arduino Port:",
+                        options=st.session_state.arduino_ports,
+                        key="arduino_port_select",
+                        format_func=lambda x: f"{x} - {st.session_state.arduino_port_info.get(x, 'Unknown')}"
+                    )
+                    
+                    col_conn1, col_conn2 = st.columns(2)
+                    with col_conn1:
+                        if st.button("🔌 Connect Arduino", key="connect_arduino"):
+                            if sensor_manager.connect_arduino(selected_arduino):
+                                st.success(f"Connected to {selected_arduino}")
+                                sensor_manager.start()
+                                st.rerun()
+                            else:
+                                st.error("Failed to connect")
+                    
+                    with col_conn2:
+                        if st.button("❌ Disconnect Arduino", key="disconnect_arduino"):
+                            sensor_manager.stop()
+                            st.success("Disconnected")
+                            st.rerun()
+            
+            with col2:
+                st.subheader("ESP32")
+                st.caption("Sensor: INMP441 MEMS Microphone (I2S)")
+                
+                if st.button("🔍 Scan Ports", key="scan_esp32"):
+                    ports = sensor_manager.scan_ports()
+                    if ports:
+                        st.session_state.esp32_ports = [p['device'] for p in ports]
+                        st.session_state.esp32_port_info = {p['device']: p['description'] for p in ports}
+                    else:
+                        st.warning("No serial ports found")
+                
+                if 'esp32_ports' in st.session_state and st.session_state.esp32_ports:
+                    selected_esp32 = st.selectbox(
+                        "Select ESP32 Port:",
+                        options=st.session_state.esp32_ports,
+                        key="esp32_port_select",
+                        format_func=lambda x: f"{x} - {st.session_state.esp32_port_info.get(x, 'Unknown')}"
+                    )
+                    
+                    col_conn3, col_conn4 = st.columns(2)
+                    with col_conn3:
+                        if st.button("🔌 Connect ESP32", key="connect_esp32"):
+                            if sensor_manager.connect_esp32(selected_esp32):
+                                st.success(f"Connected to {selected_esp32}")
+                                sensor_manager.start()
+                                st.rerun()
+                            else:
+                                st.error("Failed to connect")
+                    
+                    with col_conn4:
+                        if st.button("❌ Disconnect ESP32", key="disconnect_esp32"):
+                            sensor_manager.stop()
+                            st.success("Disconnected")
+                            st.rerun()
+        
+        # Sensor Status Display
+        st.markdown("#### 📊 Sensor Status")
+        
+        if sensor_manager:
+            sensor_status = sensor_manager.get_sensor_status()
+            latest_data = sensor_manager.get_latest_data()
+            
+            # Create status cards
+            col1, col2, col3, col4 = st.columns(4)
+            
+            with col1:
+                max30102_status = sensor_status['MAX30102']['connected']
+                status_color = "🟢" if max30102_status else "🔴"
+                st.markdown(f"""
+                <div style="background: rgba(255,255,255,0.05); padding: 12px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.1);">
+                    <div style="font-size: 24px; text-align: center;">{status_color}</div>
+                    <div style="text-align: center; font-weight: 600;">MAX30102</div>
+                    <div style="text-align: center; font-size: 12px; color: #aaa;">PPG Sensor</div>
+                    <div style="text-align: center; margin-top: 8px;">
+                        <span style="color: {'#4CAF50' if max30102_status else '#f44336'};">
+                            {'Connected' if max30102_status else 'Disconnected'}
+                        </span>
+                    </div>
+                </div>
+                """, unsafe_allow_html=True)
+                if max30102_status and latest_data['ppg']['bpm'] > 0:
+                    st.caption(f"BPM: {int(latest_data['ppg']['beat_avg'])}")
+            
+            with col2:
+                mpu6050_status = sensor_status['MPU6050']['connected']
+                status_color = "🟢" if mpu6050_status else "🔴"
+                st.markdown(f"""
+                <div style="background: rgba(255,255,255,0.05); padding: 12px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.1);">
+                    <div style="font-size: 24px; text-align: center;">{status_color}</div>
+                    <div style="text-align: center; font-weight: 600;">MPU6050</div>
+                    <div style="text-align: center; font-size: 12px; color: #aaa;">Motion Sensor</div>
+                    <div style="text-align: center; margin-top: 8px;">
+                        <span style="color: {'#4CAF50' if mpu6050_status else '#f44336'};">
+                            {'Connected' if mpu6050_status else 'Disconnected'}
+                        </span>
+                    </div>
+                </div>
+                """, unsafe_allow_html=True)
+                if mpu6050_status:
+                    motion = np.sqrt(latest_data['motion']['accel_x']**2 + 
+                                   latest_data['motion']['accel_y']**2 + 
+                                   latest_data['motion']['accel_z']**2)
+                    st.caption(f"Motion: {motion:.2f} g")
+            
+            with col3:
+                oled_status = sensor_status['SSD1306']['connected']
+                status_color = "🟢" if oled_status else "🔴"
+                st.markdown(f"""
+                <div style="background: rgba(255,255,255,0.05); padding: 12px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.1);">
+                    <div style="font-size: 24px; text-align: center;">{status_color}</div>
+                    <div style="text-align: center; font-weight: 600;">SSD1306</div>
+                    <div style="text-align: center; font-size: 12px; color: #aaa;">OLED Display</div>
+                    <div style="text-align: center; margin-top: 8px;">
+                        <span style="color: {'#4CAF50' if oled_status else '#f44336'};">
+                            {'Connected' if oled_status else 'Disconnected'}
+                        </span>
+                    </div>
+                </div>
+                """, unsafe_allow_html=True)
+            
+            with col4:
+                inmp441_status = sensor_status['INMP441']['connected']
+                status_color = "🟢" if inmp441_status else "🔴"
+                st.markdown(f"""
+                <div style="background: rgba(255,255,255,0.05); padding: 12px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.1);">
+                    <div style="font-size: 24px; text-align: center;">{status_color}</div>
+                    <div style="text-align: center; font-weight: 600;">INMP441</div>
+                    <div style="text-align: center; font-size: 12px; color: #aaa;">MEMS Mic (ESP32)</div>
+                    <div style="text-align: center; margin-top: 8px;">
+                        <span style="color: {'#4CAF50' if inmp441_status else '#f44336'};">
+                            {'Connected' if inmp441_status else 'Disconnected'}
+                        </span>
+                    </div>
+                </div>
+                """, unsafe_allow_html=True)
+            
+            # Show sensor data if connected
+            if any(status['connected'] for status in sensor_status.values()):
+                st.markdown("---")
+                st.markdown("#### 📈 Live Sensor Data")
+                
+                data_col1, data_col2 = st.columns(2)
+                
+                with data_col1:
+                    if max30102_status:
+                        st.markdown("**PPG Sensor (MAX30102)**")
+                        st.metric("Heart Rate", f"{int(latest_data['ppg']['beat_avg'])} BPM" if latest_data['ppg']['beat_avg'] > 0 else "N/A")
+                        st.metric("IR Value", f"{latest_data['ppg']['ir']:,}")
+                        st.metric("Red Value", f"{latest_data['ppg']['red']:,}")
+                
+                with data_col2:
+                    if mpu6050_status:
+                        st.markdown("**Motion Sensor (MPU6050)**")
+                        st.metric("Temperature", f"{latest_data['motion']['temp']:.1f}°C")
+                        st.metric("Accel X", f"{latest_data['motion']['accel_x']:.2f} g")
+                        st.metric("Accel Y", f"{latest_data['motion']['accel_y']:.2f} g")
+                        st.metric("Accel Z", f"{latest_data['motion']['accel_z']:.2f} g")
+        
+        st.markdown("---")
 
     # Live Recording Section (no upload tab - upload is in navigation)
     st.markdown("### 🎤 Browser Microphone Recording")
