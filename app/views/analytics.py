@@ -479,6 +479,15 @@ def render():
                 st.write(df['data_source'].value_counts().to_dict())
             st.subheader("Label Distribution")
             st.write(df["label"].value_counts(dropna=False).to_dict())
+            if 'prediction' in df.columns:
+                st.subheader("Raw Prediction Values")
+                st.write(df['prediction'].value_counts(dropna=False).head(20).to_dict())
+                # Show what's causing "Unknown"
+                unknown_records = df[df['label'] == 'Unknown']
+                if len(unknown_records) > 0:
+                    st.subheader("Unknown Label Causes")
+                    if 'prediction' in unknown_records.columns:
+                        st.write("Predictions causing Unknown:", unknown_records['prediction'].unique().tolist())
 
     # Date range filter
     if df["timestamp"].notna().any():
