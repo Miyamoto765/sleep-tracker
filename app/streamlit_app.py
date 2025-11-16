@@ -25,7 +25,7 @@ except Exception:
 
 if "page" in query_params:
     requested = query_params.get("page", [""])[0] or ""
-    VALID = {"Main", "Home", "Upload", "Logger", "Analytics"}
+    VALID = {"Main", "Home", "Real-time", "Upload", "Logger", "Analytics"}
     if requested in VALID:
         st.session_state["page"] = requested
     try:
