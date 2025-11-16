@@ -71,6 +71,65 @@ streamlit run app/streamlit_app.py
 - pandas
 - numpy
 
+## Auto-sync with GitHub (Compyle AI Integration)
+
+This project includes an automatic Git pull script that keeps your local VS Code workspace in sync with the GitHub repository.
+
+### Setup (Windows only)
+
+A Windows Scheduled Task named `SleepTracker_AutoGitPull` has been configured to run the sync script every 5 minutes. No additional setup is required — it runs automatically in the background.
+
+#### Manual Testing
+
+To test the sync script directly:
+
+```powershell
+cd "C:\Users\ahmed\OneDrive\Desktop\sleep-tracker\scripts"
+powershell -NoProfile -ExecutionPolicy Bypass -File ".\autopull.ps1" -IntervalSeconds 5
+```
+
+The script will:
+- Fetch remote changes every 5 seconds (for testing)
+- Pull automatically if your local branch is clean and behind the remote
+- Skip pulling if you have uncommitted changes or if branches have diverged (safe behavior)
+- Log all activity to `scripts/autopull.log`
+
+#### Manage the Scheduled Task
+
+```powershell
+# Run the task immediately
+schtasks /Run /TN "SleepTracker_AutoGitPull"
+
+# Check task status and last run result
+schtasks /Query /TN "SleepTracker_AutoGitPull" /V /FO LIST
+
+# Disable the task
+schtasks /Change /TN "SleepTracker_AutoGitPull" /DISABLE
+
+# Re-enable the task
+schtasks /Change /TN "SleepTracker_AutoGitPull" /ENABLE
+
+# Delete the task permanently
+schtasks /Delete /TN "SleepTracker_AutoGitPull" /F
+```
+
+### How It Works
+
+- **Every 5 minutes**, the `scripts/autopull.ps1` script runs and checks for remote changes.
+- If your local branch is **clean** (no uncommitted changes) and **strictly behind** the remote, it performs a fast-forward pull (`git pull --ff-only`).
+- If you have uncommitted changes or the branches have diverged, the script logs a message and skips the pull to prevent conflicts.
+- All activity is logged to `scripts/autopull.log` for debugging.
+
+### Tips
+
+- **VS Code Integration**: Install the [GitLens](https://marketplace.visualstudio.com/items?itemName=eamodio.gitlens) extension (already installed) for enhanced Git visualization and auto-fetch settings.
+- **Manual Pull**: At any time, press `Ctrl+Shift+G` (Source Control) and click "Sync Changes" to manually pull remote updates.
+- **Work on Remote Branches**: To work on the `compyle/admin-sleep-tracker` branch:
+  ```powershell
+  cd "C:\Users\ahmed\OneDrive\Desktop\sleep-tracker"
+  git switch compyle/admin-sleep-tracker
+  ```
+
 ## License
 
 [Add your license here]
