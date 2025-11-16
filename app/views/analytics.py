@@ -365,59 +365,76 @@ def render():
     else:
         df["label"] = "Unknown"
 
-    # Sidebar: debug controls
-    st.sidebar.header("Filters & debug")
-    show_debug = st.sidebar.checkbox("Show debug info (raw values)", value=False)
-    if show_debug:
-        st.sidebar.subheader("Raw prediction values")
-        if "prediction" in df.columns:
-            st.sidebar.write(df["prediction"].value_counts(dropna=False).to_dict())
-        else:
-            st.sidebar.write("No 'prediction' column found")
-        st.sidebar.subheader("Derived labels")
-        st.sidebar.write(df["label"].value_counts(dropna=False).to_dict())
+    # Sidebar: enhanced filters
+    st.sidebar.header("🔍 Analytics Filters")
 
-    # Filters
-    min_date = df["timestamp"].min()
-    max_date = df["timestamp"].max()
-    if pd.isna(min_date) or pd.isna(max_date):
-        min_date = datetime.today()
-        max_date = datetime.today()
-    date_range = st.sidebar.date_input("Date range", value=(min_date.date(), max_date.date()))
+    # Data source filter
+    if 'data_source' in df.columns:
+        data_sources = df['data_source'].unique().tolist()
+        selected_sources = st.sidebar.multiselect("Data Sources", options=data_sources, default=data_sources)
+    else:
+        selected_sources = df['data_source'].unique() if 'data_source' in df.columns else ['all']
+
+    # Debug controls
+    with st.sidebar.expander("🔧 Debug Options"):
+        show_debug = st.checkbox("Show debug info", value=False)
+        if show_debug:
+            st.subheader("Data Sources")
+            if 'data_source' in df.columns:
+                st.write(df['data_source'].value_counts().to_dict())
+            st.subheader("Label Distribution")
+            st.write(df["label"].value_counts(dropna=False).to_dict())
+
+    # Date range filter
+    if df["timestamp"].notna().any():
+        min_date = df["timestamp"].min().date()
+        max_date = df["timestamp"].max().date()
+    else:
+        min_date = datetime.today().date()
+        max_date = datetime.today().date()
+
+    date_range = st.sidebar.date_input("Date Range", value=(min_date, max_date))
     all_labels = sorted(df["label"].dropna().unique().tolist())
-    selected_labels = st.sidebar.multiselect("Labels", options=all_labels, default=all_labels)
+    selected_labels = st.sidebar.multiselect("Sleep Stages", options=all_labels, default=all_labels)
 
-    # apply
+    # Apply filters
     df_filtered = df.copy()
+
+    # Filter by data source
+    if 'data_source' in df.columns and selected_sources:
+        df_filtered = df_filtered[df_filtered["data_source"].isin(selected_sources)]
+
+    # Filter by date range
     if date_range and len(date_range) == 2:
         start, end = date_range
         if start:
             df_filtered = df_filtered[df_filtered["timestamp"] >= pd.to_datetime(start)]
         if end:
             df_filtered = df_filtered[df_filtered["timestamp"] <= pd.to_datetime(end) + pd.Timedelta(days=1)]
+
+    # Filter by labels
     if selected_labels:
         df_filtered = df_filtered[df_filtered["label"].isin(selected_labels)]
 
     if df_filtered.shape[0] == 0:
-        st.info("No records matching filters.")
+        st.warning("No records matching current filters.")
         st.markdown('</div>', unsafe_allow_html=True)
         return
 
-    # summary metrics
-    col1, col2, col3 = st.columns([1,1,2])
-    with col1:
-        st.metric("Uploads", str(len(df_filtered)))
-    with col2:
-        mean_score = df_filtered["sleep_score"].dropna()
-        mean_score_val = int(mean_score.mean()) if not mean_score.empty else "N/A"
-        st.metric("Mean Sleep Score", f"{mean_score_val}/100")
-    with col3:
-        most_common = df_filtered["label"].mode().iloc[0] if not df_filtered["label"].mode().empty else "N/A"
-        st.metric("Most common label", most_common)
+    # Summary metrics at top
+    create_overview_charts(df_filtered)
 
     st.markdown("---")
 
-    # Build pie: ensure canonical labels included even if count 0
+    # Advanced analytics section
+    create_advanced_charts(df_filtered)
+
+    st.markdown("---")
+
+    # Original charts section (keep for compatibility)
+    st.subheader("📋 Detailed Analysis")
+
+    # Sleep stage distribution
     counts = [int(df_filtered[df_filtered["label"] == lab].shape[0]) for lab in CANONICAL_LABELS]
     extras = [lab for lab in df_filtered["label"].unique() if lab not in CANONICAL_LABELS]
     ext_counts = [int(df_filtered[df_filtered["label"] == lab].shape[0]) for lab in extras]
@@ -427,43 +444,72 @@ def render():
 
     pie_df = pd.DataFrame({"label": display_labels, "count": display_counts})
 
-    if pie_df["count"].sum() == 0:
-        st.info("No labelled records to show in cluster distribution.")
-    else:
+    if pie_df["count"].sum() > 0:
         color_map = {lbl: LABEL_COLORS.get(lbl, "#6c7a89") for lbl in display_labels}
-        fig_pie = px.pie(pie_df, names="label", values="count", title="Predicted cluster distribution (labels)", hole=0.35, color="label", color_discrete_map=color_map)
+        fig_pie = px.pie(pie_df, names="label", values="count",
+                         title="Sleep Stage Distribution", hole=0.35,
+                         color="label", color_discrete_map=color_map)
         fig_pie.update_traces(textposition="inside", textinfo="percent+label", sort=False)
-        st.plotly_chart(fig_pie, use_container_width=True, height=450)
+        st.plotly_chart(fig_pie, use_container_width=True, height=400)
 
-    st.markdown("---")
+    # Average confidence by stage
+    if "sleep_score" in df_filtered.columns:
+        score_by_label = df_filtered.groupby("label")["sleep_score"].mean().reset_index().sort_values("sleep_score", ascending=False)
+        if score_by_label.shape[0] > 0:
+            fig_bar = px.bar(score_by_label, x="sleep_score", y="label", orientation="h",
+                           labels={"sleep_score": "Average Confidence Score", "label": "Sleep Stage"},
+                           title="Average Confidence by Sleep Stage",
+                           color="label", color_discrete_map=LABEL_COLORS)
+            fig_bar.update_layout(xaxis_range=[0,100], showlegend=False, height=300)
+            st.plotly_chart(fig_bar, use_container_width=True)
 
-    # Average sleep_score per label
-    score_by_label = df_filtered.groupby("label")["sleep_score"].mean().reset_index().sort_values("sleep_score", ascending=False)
-    if score_by_label.shape[0] > 0:
-        fig_bar = px.bar(score_by_label, x="sleep_score", y="label", orientation="h", labels={"sleep_score": "Average sleep score", "label": ""}, title="Average sleep score by label", color="label", color_discrete_map=color_map)
-        fig_bar.update_layout(xaxis_range=[0,100], showlegend=False)
-        st.plotly_chart(fig_bar, use_container_width=True, height=320)
-    else:
-        st.info("No sleep_score values to compute averages.")
-
-    st.markdown("---")
-
-    # time series: sleep_score
+    # Time series analysis
     if "sleep_score" in df_filtered.columns and df_filtered["sleep_score"].notna().any():
         df_time = df_filtered.dropna(subset=["timestamp"]).copy().sort_values("timestamp")
-        fig_line = px.line(df_time, x="timestamp", y="sleep_score", color="label", markers=True, labels={"timestamp": "Time", "sleep_score": "Sleep score (%)"}, title="Sleep score timeline", color_discrete_map=color_map)
-        fig_line.update_yaxes(range=[0,100])
-        st.plotly_chart(fig_line, use_container_width=True, height=360)
-    else:
-        st.info("No sleep_score values found to plot timeline.")
+        if not df_time.empty:
+            fig_line = px.line(df_time, x="timestamp", y="sleep_score", color="label",
+                              markers=True,
+                              labels={"timestamp": "Time", "sleep_score": "Confidence Score (%)"},
+                              title="Confidence Score Timeline",
+                              color_discrete_map=LABEL_COLORS)
+            fig_line.update_yaxes(range=[0,100], height=300)
+            st.plotly_chart(fig_line, use_container_width=True)
 
-    st.markdown("---")
-    st.subheader("Recent uploads")
-    show_cols = ["timestamp","filename","label","sleep_score","prediction","filepath"]
-    available = [c for c in show_cols if c in df_filtered.columns]
-    recent_table = df_filtered.sort_values("timestamp", ascending=False)[available].head(20).reset_index(drop=True)
-    if "sleep_score" in recent_table.columns:
-        recent_table["sleep_score"] = recent_table["sleep_score"].apply(lambda x: f"{int(x)}" if pd.notna(x) else "")
-    st.dataframe(recent_table)
+    # Recent recordings table
+    with st.expander("📊 Recent Recordings", expanded=False):
+        show_cols = ["timestamp","filename","label","sleep_score","data_source","prediction","filepath"]
+        available = [c for c in show_cols if c in df_filtered.columns]
+        recent_table = df_filtered.sort_values("timestamp", ascending=False)[available].head(20).reset_index(drop=True)
+
+        if "sleep_score" in recent_table.columns:
+            recent_table["sleep_score"] = recent_table["sleep_score"].apply(lambda x: f"{int(x)}%" if pd.notna(x) else "")
+        if "timestamp" in recent_table.columns:
+            recent_table["timestamp"] = recent_table["timestamp"].dt.strftime('%Y-%m-%d %H:%M')
+
+        st.dataframe(recent_table, use_container_width=True)
+
+    # Export functionality
+    with st.expander("💾 Export Options"):
+        col1, col2 = st.columns(2)
+
+        with col1:
+            if st.button("Export to CSV"):
+                csv_data = df_filtered.to_csv(index=False)
+                st.download_button(
+                    label="Download CSV",
+                    data=csv_data,
+                    file_name=f"sleep_analytics_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv",
+                    mime="text/csv"
+                )
+
+        with col2:
+            if st.button("Export to JSON"):
+                json_data = df_filtered.to_json(orient='records', date_format='iso', indent=2)
+                st.download_button(
+                    label="Download JSON",
+                    data=json_data,
+                    file_name=f"sleep_analytics_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json",
+                    mime="application/json"
+                )
 
     st.markdown('</div>', unsafe_allow_html=True)
