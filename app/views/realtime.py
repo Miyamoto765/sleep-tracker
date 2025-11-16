@@ -572,11 +572,32 @@ def render():
     st.markdown("### 🎤 Browser Microphone Recording")
     st.markdown("Click 'Start Recording' to begin capturing audio from your microphone for real-time sleep pattern analysis.")
 
+    # Control Arduino recording if connected
+    if sensor_manager and sensor_manager.arduino_serial and sensor_manager.arduino_serial.is_open:
+        rec_col1, rec_col2 = st.columns(2)
+        with rec_col1:
+            if st.button("🔴 Start Arduino Recording", key="start_arduino_rec"):
+                if sensor_manager.start_recording():
+                    st.success("Arduino recording started - OLED will show recording status")
+                else:
+                    st.error("Failed to start Arduino recording")
+        with rec_col2:
+            if st.button("⏹️ Stop Arduino Recording", key="stop_arduino_rec"):
+                if sensor_manager.stop_recording():
+                    st.success("Arduino recording stopped")
+                else:
+                    st.error("Failed to stop Arduino recording")
+
     # Render audio recorder component
     st.components.v1.html(audio_recorder_component(), height=300)
 
     # Get audio data from component
     audio_data = st.session_state.get('audio_data', None)
+    
+    # Auto-start Arduino recording when browser recording starts
+    if audio_data and sensor_manager:
+        if sensor_manager.arduino_serial and sensor_manager.arduino_serial.is_open:
+            sensor_manager.start_recording()
 
     if audio_data:
         st.success("Audio recorded successfully! Processing...")

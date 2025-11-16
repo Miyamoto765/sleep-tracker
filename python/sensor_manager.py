@@ -242,4 +242,26 @@ class SensorManager:
     def is_connected(self):
         """Check if any sensor is connected."""
         return any(status['connected'] for status in self.sensor_status.values())
+    
+    def start_recording(self):
+        """Send start recording command to Arduino."""
+        if self.arduino_serial and self.arduino_serial.is_open:
+            try:
+                self.arduino_serial.write(b"START_REC\n")
+                return True
+            except Exception as e:
+                print(f"Error sending start recording command: {e}")
+                return False
+        return False
+    
+    def stop_recording(self):
+        """Send stop recording command to Arduino."""
+        if self.arduino_serial and self.arduino_serial.is_open:
+            try:
+                self.arduino_serial.write(b"STOP_REC\n")
+                return True
+            except Exception as e:
+                print(f"Error sending stop recording command: {e}")
+                return False
+        return False
 

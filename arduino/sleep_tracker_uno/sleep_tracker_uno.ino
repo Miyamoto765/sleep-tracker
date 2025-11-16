@@ -60,6 +60,13 @@ float temp;
 unsigned long lastDataSend = 0;
 const unsigned long DATA_INTERVAL = 100; // Send data every 100ms
 
+// Display variables
+int displayPage = 0; // 0 = Overview, 1 = PPG Details, 2 = Motion Details
+unsigned long lastPageChange = 0;
+const unsigned long PAGE_CHANGE_INTERVAL = 5000; // Change page every 5 seconds
+bool recordingActive = false;
+unsigned long recordingStartTime = 0;
+
 void setup() {
   Serial.begin(115200);
   Serial.println("Sleep Tracker - Arduino UNO Starting...");
@@ -141,11 +148,22 @@ void loop() {
     lastDataSend = currentMillis;
   }
   
-  // Update display every second
+  // Update display every 500ms for smoother updates
   static unsigned long lastDisplayUpdate = 0;
-  if (currentMillis - lastDisplayUpdate >= 1000) {
+  if (currentMillis - lastDisplayUpdate >= 500) {
     updateDisplay();
     lastDisplayUpdate = currentMillis;
+  }
+  
+  // Check for recording commands from serial
+  if (Serial.available() > 0) {
+    String command = Serial.readStringUntil('\n');
+    command.trim();
+    if (command == "START_REC") {
+      startRecording();
+    } else if (command == "STOP_REC") {
+      stopRecording();
+    }
   }
 }
 
@@ -203,30 +221,185 @@ void sendSensorData() {
 void updateDisplay() {
   if (!oled_connected) return;
   
-  display.clearDisplay();
-  display.setCursor(0, 0);
-  display.println("Sleep Tracker");
-  display.println("---");
-  
-  // Sensor status
-  display.print("PPG: ");
-  display.println(max30102_connected ? "OK" : "NO");
-  display.print("Motion: ");
-  display.println(mpu6050_connected ? "OK" : "NO");
-  
-  // Show heart rate if available
-  if (max30102_connected && beatAvg > 0) {
-    display.print("BPM: ");
-    display.println(beatAvg);
+  // Auto-cycle through pages every 5 seconds
+  unsigned long currentMillis = millis();
+  if (currentMillis - lastPageChange >= PAGE_CHANGE_INTERVAL) {
+    displayPage = (displayPage + 1) % 3; // Cycle through 3 pages
+    lastPageChange = currentMillis;
   }
   
-  // Show motion magnitude
-  if (mpu6050_connected) {
-    float motion = sqrt(accelX*accelX + accelY*accelY + accelZ*accelZ);
-    display.print("Motion: ");
-    display.println(motion, 2);
+  display.clearDisplay();
+  display.setTextSize(1);
+  display.setTextColor(SSD1306_WHITE);
+  
+  switch(displayPage) {
+    case 0: // Overview Page
+      displayOverview();
+      break;
+    case 1: // PPG Sensor Details
+      displayPPGDetails();
+      break;
+    case 2: // Motion Sensor Details
+      displayMotionDetails();
+      break;
   }
   
   display.display();
+}
+
+void displayOverview() {
+  display.setCursor(0, 0);
+  display.setTextSize(1);
+  display.println("Sleep Tracker");
+  display.drawLine(0, 10, 128, 10, SSD1306_WHITE);
+  
+  // Recording status
+  display.setCursor(0, 12);
+  if (recordingActive) {
+    unsigned long recordingTime = (millis() - recordingStartTime) / 1000;
+    display.print("REC: ");
+    display.print(recordingTime);
+    display.println("s");
+  } else {
+    display.println("Status: Ready");
+  }
+  
+  // Sensor status indicators
+  display.setCursor(0, 22);
+  display.print("PPG:");
+  display.print(max30102_connected ? "OK" : "NO");
+  display.print(" Mot:");
+  display.println(mpu6050_connected ? "OK" : "NO");
+  
+  // Heart rate (if available)
+  if (max30102_connected && beatAvg > 0) {
+    display.setCursor(0, 32);
+    display.setTextSize(2);
+    display.print("BPM:");
+    display.print(beatAvg);
+    display.setTextSize(1);
+  }
+  
+  // Motion magnitude
+  if (mpu6050_connected) {
+    float motion = sqrt(accelX*accelX + accelY*accelY + accelZ*accelZ);
+    display.setCursor(0, 48);
+    display.print("Motion: ");
+    display.print(motion, 1);
+    display.println(" g");
+    
+    // Temperature
+    display.setCursor(0, 56);
+    display.print("Temp: ");
+    display.print(temp, 1);
+    display.println("C");
+  }
+  
+  // Page indicator
+  display.setCursor(110, 0);
+  display.print("1/3");
+}
+
+void displayPPGDetails() {
+  display.setCursor(0, 0);
+  display.setTextSize(1);
+  display.println("PPG Sensor (MAX30102)");
+  display.drawLine(0, 10, 128, 10, SSD1306_WHITE);
+  
+  if (max30102_connected) {
+    // Heart rate
+    display.setCursor(0, 12);
+    display.print("Heart Rate:");
+    if (beatAvg > 0) {
+      display.setTextSize(2);
+      display.setCursor(0, 22);
+      display.print(beatAvg);
+      display.setTextSize(1);
+      display.print(" BPM");
+    } else {
+      display.println(" Detecting...");
+    }
+    
+    // IR and Red values
+    display.setCursor(0, 40);
+    display.print("IR: ");
+    display.println(irValue);
+    
+    display.setCursor(0, 50);
+    display.print("Red: ");
+    display.println(redValue);
+    
+    // Signal quality indicator
+    display.setCursor(0, 60);
+    long signalQuality = (irValue + redValue) / 2;
+    if (signalQuality > 50000) {
+      display.println("Signal: Good");
+    } else if (signalQuality > 20000) {
+      display.println("Signal: Fair");
+    } else {
+      display.println("Signal: Weak");
+    }
+  } else {
+    display.setCursor(0, 20);
+    display.println("PPG Sensor");
+    display.println("Not Connected");
+  }
+  
+  // Page indicator
+  display.setCursor(110, 0);
+  display.print("2/3");
+}
+
+void displayMotionDetails() {
+  display.setCursor(0, 0);
+  display.setTextSize(1);
+  display.println("Motion Sensor (MPU6050)");
+  display.drawLine(0, 10, 128, 10, SSD1306_WHITE);
+  
+  if (mpu6050_connected) {
+    // Temperature
+    display.setCursor(0, 12);
+    display.print("Temp: ");
+    display.print(temp, 1);
+    display.println("C");
+    
+    // Acceleration
+    display.setCursor(0, 22);
+    display.print("Accel X:");
+    display.println(accelX, 2);
+    
+    display.setCursor(0, 32);
+    display.print("Accel Y:");
+    display.println(accelY, 2);
+    
+    display.setCursor(0, 42);
+    display.print("Accel Z:");
+    display.println(accelZ, 2);
+    
+    // Motion magnitude
+    float motion = sqrt(accelX*accelX + accelY*accelY + accelZ*accelZ);
+    display.setCursor(0, 52);
+    display.print("Magnitude: ");
+    display.print(motion, 2);
+    display.println("g");
+  } else {
+    display.setCursor(0, 20);
+    display.println("Motion Sensor");
+    display.println("Not Connected");
+  }
+  
+  // Page indicator
+  display.setCursor(110, 0);
+  display.print("3/3");
+}
+
+void startRecording() {
+  recordingActive = true;
+  recordingStartTime = millis();
+}
+
+void stopRecording() {
+  recordingActive = false;
+  recordingStartTime = 0;
 }
 
