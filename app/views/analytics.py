@@ -1,11 +1,16 @@
 # app/views/analytics.py
 import os
-from datetime import datetime
+from datetime import datetime, timedelta
 import pandas as pd
 import streamlit as st
 import plotly.express as px
+import plotly.graph_objects as go
+import plotly.figure_factory as ff
+from src.session_manager import get_session_manager
+import numpy as np
 
 HISTORY_CSV = "data/upload_history.csv"
+REALTIME_HISTORY_CSV = "data/realtime_history.csv"
 
 CANONICAL_LABELS = ["Wake", "Light sleep", "Deep sleep", "REM"]
 LABEL_COLORS = {
