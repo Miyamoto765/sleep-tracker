@@ -6,7 +6,7 @@ def render():
     st.markdown(
         """
         <div class="app-card">
-            <h1>😴 AI Sleep Tracker</h1>
+            <h1>😴 Sleep Tracker</h1>
             <p>
                 Track your sleep patterns and breathing with the power of AI.  
                 This project combines audio analysis 🎧 and motion logging 📡 to help you 

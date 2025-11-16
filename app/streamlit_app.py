@@ -36,7 +36,7 @@ if "page" in query_params:
 if "page" not in st.session_state:
     st.session_state["page"] = "Main"
 
-st.set_page_config(page_title="AI Sleep Tracker", layout="wide")
+st.set_page_config(page_title="Sleep Tracker", layout="wide")
 apply_css()
 
 # ---- IMPORTANT: show navbar always ----

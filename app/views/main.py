@@ -10,7 +10,7 @@ def render():
       <div style="display:flex; gap:18px; align-items:center;">
         <div style="font-size:48px">😴</div>
         <div>
-          <h1 style="margin:0;">AI Sleep Tracker</h1>
+          <h1 style="margin:0;">Sleep Tracker</h1>
           <p style="margin:6px 0 0 0; color:#d9f1f1;">
             Quick, private sleep insights using only your breathing & motion data —
             upload a short clip or simulate motion logs and get an instant sleep-stage snapshot.

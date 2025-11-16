@@ -374,7 +374,7 @@ def navbar_buttons(pages_dict):
     # top container with brand (left) and buttons (centered)
     html = """
     <div class="nav-container">
-      <div class="nav-title"><div class="logo">😴</div><div>AI Sleep Tracker</div></div>
+      <div class="nav-title"><div class="logo">😴</div><div>Sleep Tracker</div></div>
     </div>
     """
     st.markdown(html, unsafe_allow_html=True)
@@ -413,7 +413,7 @@ def footer():
     st.markdown(
         """
         <div class="app-footer">
-          Built with ❤️ • Librosa + Scikit-learn + Streamlit • AI Sleep Tracker — prototype
+          Built with ❤️ • Librosa + Scikit-learn + Streamlit • Sleep Tracker — prototype
         </div>
         """,
         unsafe_allow_html=True,

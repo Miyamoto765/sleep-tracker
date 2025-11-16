@@ -190,7 +190,7 @@ def create_overview_charts(df):
         fig.update_traces(textposition="inside", textinfo="percent+label",
                         hovertemplate="<b>%{label}</b><br>Count: %{value}<br>Percentage: %{percent}<extra></extra>")
         fig.update_layout(showlegend=True, height=400)
-        st.plotly_chart(fig, width='stretch', key="overview_pie_chart")
+        st.plotly_chart(fig, width='stretch', key="overview_pie_chart_tab1")
 
     with col2:
         # Confidence distribution
@@ -200,7 +200,7 @@ def create_overview_charts(df):
                              title="Distribution of Confidence Scores",
                              color='label', color_discrete_map=LABEL_COLORS)
             fig.update_layout(height=400)
-            st.plotly_chart(fig, width='stretch', key="confidence_distribution")
+            st.plotly_chart(fig, width='stretch', key="confidence_distribution_tab1")
         else:
             st.info("No confidence score data available.")
 
@@ -463,12 +463,7 @@ def render():
         st.markdown('</div>', unsafe_allow_html=True)
         return
 
-    # Summary metrics at top
-    create_overview_charts(df_filtered)
-
-    st.markdown("---")
-
-    # Advanced analytics section
+    # Advanced analytics section (includes overview charts in Overview tab)
     create_advanced_charts(df_filtered)
 
     st.markdown("---")
