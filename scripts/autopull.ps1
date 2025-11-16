@@ -4,7 +4,8 @@
 
 param(
     [string]$RepoPath = "C:\Users\ahmed\OneDrive\Desktop\sleep-tracker",
-    [int]$IntervalSeconds = 30
+    [int]$IntervalSeconds = 30,
+    [switch]$Once
 )
 
 # Log file inside the repo scripts folder
@@ -69,6 +70,14 @@ function Run-Once {
     }
 
     Log "Branches have diverged. Manual intervention required."; return
+}
+
+# If running in one-shot mode, just execute Run-Once and exit.
+if ($Once) {
+    Log "Run-Once mode requested. Executing single check."
+    try { Run-Once } catch { Log "Error during run: $_" }
+    Log "Run-Once completed. Exiting."
+    exit 0
 }
 
 # Simple infinite loop with interval
