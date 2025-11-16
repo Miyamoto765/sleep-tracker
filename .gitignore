@@ -38,6 +38,7 @@ env/
 data/raw_audio/
 data/raw_wav/
 data/*.csv
+data/*.zip
 data/uploads/
 data/serial_logs/
 
