@@ -176,21 +176,71 @@ def create_overview_charts(df):
     col1, col2 = st.columns(2)
 
     with col1:
-        # Enhanced pie chart with subplots
+        # Enhanced pie chart with subplots - ensure all canonical labels are shown
         st.subheader("Sleep Stage Distribution")
+        
+        # Ensure all canonical labels are included even with 0 counts
         stage_counts = df['label'].value_counts()
+        
+        # Create a series with all canonical labels, initializing to 0
+        all_stages = pd.Series(0, index=CANONICAL_LABELS)
+        
+        # Update with actual counts
+        for label, count in stage_counts.items():
+            if label in CANONICAL_LABELS:
+                all_stages[label] = count
+        
+        # Add any extra labels not in canonical list (like "Unknown")
+        for label in stage_counts.index:
+            if label not in CANONICAL_LABELS:
+                all_stages[label] = stage_counts[label]
+        
+        # Filter: show all canonical labels even if 0, plus any non-canonical with data
+        # But pie charts don't display 0 values well, so show canonical with min 0.1 if 0
+        display_stages = all_stages.copy()
+        for label in CANONICAL_LABELS:
+            if display_stages[label] == 0:
+                display_stages[label] = 0.1  # Small value to show in chart
+        
+        # Remove the small placeholder if no actual data exists for canonical labels
+        if all_stages[CANONICAL_LABELS].sum() == 0 and len([l for l in stage_counts.index if l not in CANONICAL_LABELS]) > 0:
+            # Only show non-canonical labels if no canonical data
+            display_stages = all_stages[all_stages > 0]
+        elif all_stages[CANONICAL_LABELS].sum() > 0:
+            # Show all canonical labels, replacing 0.1 placeholders with 0
+            display_stages = all_stages[all_stages.index.isin(CANONICAL_LABELS) | (all_stages > 0)]
+            # Set any remaining 0.1 placeholders back to 0
+            for label in CANONICAL_LABELS:
+                if display_stages[label] == 0.1 and label not in stage_counts.index:
+                    display_stages[label] = 0
+
+        # Filter out pure zeros for pie chart (they don't display)
+        display_stages = display_stages[display_stages > 0]
 
         fig = go.Figure(data=[go.Pie(
-            labels=stage_counts.index,
-            values=stage_counts.values,
+            labels=display_stages.index.tolist(),
+            values=display_stages.values.tolist(),
             hole=0.3,
-            marker_colors=[LABEL_COLORS.get(label, "#6c7a89") for label in stage_counts.index]
+            marker_colors=[LABEL_COLORS.get(label, "#6c7a89") for label in display_stages.index]
         )])
 
+        # Add legend with all canonical labels even if not in chart
         fig.update_traces(textposition="inside", textinfo="percent+label",
                         hovertemplate="<b>%{label}</b><br>Count: %{value}<br>Percentage: %{percent}<extra></extra>")
-        fig.update_layout(showlegend=True, height=400)
+        fig.update_layout(
+            showlegend=True, 
+            height=400,
+            legend=dict(
+                title="Sleep Stages",
+                itemsizing="constant"
+            )
+        )
         st.plotly_chart(fig, width='stretch', key="overview_pie_chart_tab1")
+        
+        # Show info if any canonical stages are missing
+        missing_stages = [label for label in CANONICAL_LABELS if label not in display_stages.index]
+        if missing_stages:
+            st.caption(f"💡 Note: {', '.join(missing_stages)} stages not yet recorded")
 
     with col2:
         # Confidence distribution
@@ -330,6 +380,10 @@ def create_calendar_charts(df):
     pivot_data = weekly_counts.pivot_table(index='week', columns='day_of_week', values='count', aggfunc='sum', fill_value=0)
 
     day_names = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
+    # Reindex to ensure all 7 days are present in columns, even if empty
+    all_days = range(7)  # 0-6 for Monday-Sunday
+    pivot_data = pivot_data.reindex(columns=all_days, fill_value=0)
+    # Now safely rename columns
     pivot_data.columns = day_names
 
     fig = px.imshow(pivot_data.T,
@@ -470,7 +524,7 @@ def render():
     # Original charts section (keep for compatibility)
     st.subheader("📋 Detailed Analysis")
 
-    # Sleep stage distribution
+    # Sleep stage distribution - ensure all canonical labels are shown
     counts = [int(df_filtered[df_filtered["label"] == lab].shape[0]) for lab in CANONICAL_LABELS]
     extras = [lab for lab in df_filtered["label"].unique() if lab not in CANONICAL_LABELS]
     ext_counts = [int(df_filtered[df_filtered["label"] == lab].shape[0]) for lab in extras]
@@ -487,6 +541,15 @@ def render():
                          color="label", color_discrete_map=color_map)
         fig_pie.update_traces(textposition="inside", textinfo="percent+label", sort=False)
         st.plotly_chart(fig_pie, width='stretch', height=400, key="detailed_pie_chart")
+    else:
+        # Show empty state with all canonical labels
+        empty_pie_df = pd.DataFrame({"label": CANONICAL_LABELS, "count": [0] * len(CANONICAL_LABELS)})
+        color_map = {lbl: LABEL_COLORS.get(lbl, "#6c7a89") for lbl in CANONICAL_LABELS}
+        fig_pie = px.pie(empty_pie_df, names="label", values="count",
+                         title="Sleep Stage Distribution (No Data Yet)", hole=0.35,
+                         color="label", color_discrete_map=color_map)
+        fig_pie.update_traces(textposition="inside", textinfo="label")
+        st.plotly_chart(fig_pie, width='stretch', height=400, key="detailed_pie_chart_empty")
 
     # Average confidence by stage
     if "sleep_score" in df_filtered.columns:
