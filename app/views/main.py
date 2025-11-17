@@ -13,7 +13,7 @@ def render():
           <h1 style="margin:0;">Sleep Tracker</h1>
           <p style="margin:6px 0 0 0; color:#d9f1f1;">
             Quick, private sleep insights using only your breathing & motion data —
-            upload a short clip or simulate motion logs and get an instant sleep-stage snapshot.
+            upload a short clip or connect live sensors and get an instant sleep-stage snapshot.
           </p>
         </div>
       </div>
@@ -28,7 +28,7 @@ def render():
       <ol style="line-height:1.9;">
         <li><b>Upload</b> — Add a 30–60s audio (WAV/MP3) and we'll extract acoustic features.</li>
         <li><b>Analyze</b> — A trained model scores the recording and returns a sleep-cluster & quality score.</li>
-        <li><b>Track</b> — Use the Logger to record motion or run a simulation and monitor trends in Analytics.</li>
+        <li><b>Track</b> — Head to <b>Real-time</b> to connect Arduino/ESP32 sensors and monitor trends instantly in Analytics.</li>
       </ol>
     </div>
     """, unsafe_allow_html=True)

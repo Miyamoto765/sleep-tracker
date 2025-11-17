@@ -7,13 +7,12 @@ if ROOT not in sys.path:
     
 import streamlit as st
 from app.ui import apply_css, navbar_buttons, footer
-from app.views import main, home, upload, logger, analytics, realtime
+from app.views import main, home, upload, analytics, realtime
 
 PAGES = {
     "Home": home,
     "Real-time": realtime,
     "Upload": upload,
-    "Logger": logger,
     "Analytics": analytics
 }
 
@@ -25,7 +24,7 @@ except Exception:
 
 if "page" in query_params:
     requested = query_params.get("page", [""])[0] or ""
-    VALID = {"Main", "Home", "Real-time", "Upload", "Logger", "Analytics"}
+    VALID = {"Main", "Home", "Real-time", "Upload", "Analytics"}
     if requested in VALID:
         st.session_state["page"] = requested
     try:

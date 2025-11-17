@@ -143,6 +143,22 @@ def apply_css():
           border: 1px solid rgba(255,255,255,0.15);
         }
 
+        .nav-buttons-holder {
+          width: 100%;
+        }
+
+        .nav-buttons-holder > div[data-testid="stHorizontalBlock"] {
+          display: flex;
+          gap: 18px;
+          justify-content: space-between;
+          max-width: 920px;
+          margin: 12px auto 24px auto;
+        }
+
+        .nav-buttons-holder > div[data-testid="stHorizontalBlock"] > div {
+          flex: 1;
+        }
+
         /* Enhanced button styles with better mobile support */
         div[data-testid="stButton"] > button {
           background: linear-gradient(135deg, rgba(255,255,255,0.05), rgba(255,255,255,0.02));
@@ -176,6 +192,13 @@ def apply_css():
         div[data-testid="stButton"] > button:focus {
           outline: 2px solid rgba(0,223,216,0.6);
           outline-offset: 3px;
+        }
+
+        @media (max-width: 768px) {
+          .nav-buttons-holder > div[data-testid="stHorizontalBlock"] {
+            flex-direction: column;
+            max-width: 100%;
+          }
         }
 
         .nav-active {
@@ -379,17 +402,20 @@ def navbar_buttons(pages_dict):
     """
     st.markdown(html, unsafe_allow_html=True)
 
-    # Create equal-width columns for each page button
+    # Create equal-width columns for each page button inside styled holder
+    st.markdown('<div class="nav-buttons-holder">', unsafe_allow_html=True)
     keys = list(pages_dict.keys())
-    cols = st.columns(len(keys))
-    for i, name in enumerate(keys):
-        with cols[i]:
-            label = name
-            # Render a button; clicking it sets session state and reruns
-            if st.button(label, key=f"nav_{name}"):
-                st.session_state["page"] = name
-                # Use safe rerun to support different Streamlit versions
-                safe_rerun()
+    if keys:
+        cols = st.columns(len(keys))
+        for i, name in enumerate(keys):
+            with cols[i]:
+                label = name
+                # Render a button; clicking it sets session state and reruns
+                if st.button(label, key=f"nav_{name}"):
+                    st.session_state["page"] = name
+                    # Use safe rerun to support different Streamlit versions
+                    safe_rerun()
+    st.markdown('</div>', unsafe_allow_html=True)
 
     # small JS to highlight active nav button by text match
     current = st.session_state.get("page", "Home")
@@ -413,7 +439,7 @@ def footer():
     st.markdown(
         """
         <div class="app-footer">
-          Built with ❤️ • Librosa + Scikit-learn + Streamlit • Sleep Tracker — prototype
+          Built with ❤️ • By Kabeer, Prathibha and Akshay • Sleep Tracker — prototype
         </div>
         """,
         unsafe_allow_html=True,
