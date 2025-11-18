@@ -149,14 +149,15 @@ def apply_css():
 
         .nav-buttons-holder > div[data-testid="stHorizontalBlock"] {
           display: flex;
-          gap: 18px;
-          justify-content: space-between;
+          gap: 12px;
+          justify-content: center;
           max-width: 920px;
           margin: 12px auto 24px auto;
         }
 
         .nav-buttons-holder > div[data-testid="stHorizontalBlock"] > div {
-          flex: 1;
+          flex: 0 1 auto;
+          min-width: 0;
         }
 
         /* Enhanced button styles with better mobile support */

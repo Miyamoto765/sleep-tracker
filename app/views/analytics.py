@@ -207,12 +207,14 @@ def create_overview_charts(df):
             # Only show non-canonical labels if no canonical data
             display_stages = all_stages[all_stages > 0]
         elif all_stages[CANONICAL_LABELS].sum() > 0:
-            # Show all canonical labels, replacing 0.1 placeholders with 0
-            display_stages = all_stages[all_stages.index.isin(CANONICAL_LABELS) | (all_stages > 0)]
+            # Show all canonical labels with data, exclude "Unknown" if we have canonical data
+            canonical_mask = display_stages.index.isin(CANONICAL_LABELS)
+            has_data_mask = display_stages > 0
+            display_stages = display_stages[canonical_mask & has_data_mask]
             # Set any remaining 0.1 placeholders back to 0
             for label in CANONICAL_LABELS:
-                if display_stages[label] == 0.1 and label not in stage_counts.index:
-                    display_stages[label] = 0
+                if label in display_stages.index and display_stages[label] == 0.1 and label not in stage_counts.index:
+                    display_stages = display_stages.drop(label)
 
         # Filter out pure zeros for pie chart (they don't display)
         display_stages = display_stages[display_stages > 0]
@@ -440,7 +442,13 @@ def render():
     df = load_all_data()
 
     if df.empty:
-        st.info("No sleep data found. Upload audio files or use real-time recording to populate analytics.")
+        # Check if files exist but couldn't be loaded
+        has_upload_file = os.path.exists(HISTORY_CSV) and os.path.getsize(HISTORY_CSV) > 0
+        has_realtime_file = os.path.exists(REALTIME_HISTORY_CSV) and os.path.getsize(REALTIME_HISTORY_CSV) > 0
+        if has_upload_file or has_realtime_file:
+            st.warning("Data files exist but couldn't be loaded. Please check the file format or use the debug options in the sidebar.")
+        else:
+            st.info("No sleep data found. Upload audio files or use real-time recording to populate analytics.")
         st.markdown('</div>', unsafe_allow_html=True)
         return
 
@@ -454,7 +462,17 @@ def render():
 
     # Build label column (prefer 'label' if present, else map from prediction)
     if "label" in df.columns and df["label"].notna().any():
-        df["label"] = df["label"].apply(lambda x: _map_prediction_to_label(x) if pd.notna(x) else "Unknown")
+        # Only map if label is not already a canonical label
+        def normalize_label(x):
+            if pd.isna(x):
+                return "Unknown"
+            x_str = str(x).strip()
+            # If already a canonical label, keep it
+            if x_str in CANONICAL_LABELS:
+                return x_str
+            # Otherwise, try to map it
+            return _map_prediction_to_label(x)
+        df["label"] = df["label"].apply(normalize_label)
     elif "prediction" in df.columns:
         df["label"] = df["prediction"].apply(_map_prediction_to_label)
     else:
@@ -535,8 +553,14 @@ def render():
 
     # Sleep stage distribution - ensure all canonical labels are shown
     counts = [int(df_filtered[df_filtered["label"] == lab].shape[0]) for lab in CANONICAL_LABELS]
-    extras = [lab for lab in df_filtered["label"].unique() if lab not in CANONICAL_LABELS]
+    extras = [lab for lab in df_filtered["label"].unique() if lab not in CANONICAL_LABELS and lab != "Unknown"]
     ext_counts = [int(df_filtered[df_filtered["label"] == lab].shape[0]) for lab in extras]
+
+    # Only include "Unknown" if there are no canonical labels with data
+    has_canonical_data = sum(counts) > 0
+    if not has_canonical_data and "Unknown" in df_filtered["label"].unique():
+        extras.append("Unknown")
+        ext_counts.append(int(df_filtered[df_filtered["label"] == "Unknown"].shape[0]))
 
     display_labels = CANONICAL_LABELS + extras
     display_counts = counts + ext_counts

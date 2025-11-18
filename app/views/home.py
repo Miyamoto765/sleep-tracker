@@ -8,7 +8,7 @@ def render():
         <div class="app-card">
             <h1>😴 Sleep Tracker</h1>
             <p>
-                Track your sleep patterns and breathing with the power of AI.  
+                Track your sleep patterns and breathing.  
                 This project combines audio analysis 🎧 and motion logging 📡 to help you 
                 visualize and improve your sleep quality.
             </p>

@@ -106,7 +106,7 @@ def render():
     st.markdown("## 🎵 Upload audio & predict sleep stage")
     st.markdown(
         "Add a short recording (30–60s). Supported: WAV, MP3, FLAC, OGG. "
-        "The app extracts acoustic features and predicts a sleep-stage cluster."
+        "The Website extracts acoustic features and predicts a sleep-stage cluster."
     )
 
     model, scaler, feature_cols = load_model()
