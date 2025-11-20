@@ -31,10 +31,10 @@ class SensorManager:
         
         # Sensor status
         self.sensor_status = {
+            'MAX9814': {'connected': False, 'last_update': None},
             'MAX30102': {'connected': False, 'last_update': None},
             'MPU6050': {'connected': False, 'last_update': None},
-            'SSD1306': {'connected': False, 'last_update': None},
-            'INMP441': {'connected': False, 'last_update': None}
+            'SSD1306': {'connected': False, 'last_update': None}
         }
         
         # Latest sensor data
@@ -130,12 +130,15 @@ class SensorManager:
     def _parse_arduino_data(self, line):
         """Parse data from Arduino UNO."""
         if line.startswith("STATUS:"):
-            # Format: STATUS:MAX30102=1,MPU6050=1,OLED=1
+            # Format: STATUS:MAX9814=1,MAX30102=1,MPU6050=1,OLED=1
             parts = line.replace("STATUS:", "").split(",")
             for part in parts:
                 if "=" in part:
                     sensor, status = part.split("=")
-                    if sensor == "MAX30102":
+                    if sensor == "MAX9814":
+                        self.sensor_status['MAX9814']['connected'] = (status == "1")
+                        self.sensor_status['MAX9814']['last_update'] = datetime.now()
+                    elif sensor == "MAX30102":
                         self.sensor_status['MAX30102']['connected'] = (status == "1")
                         self.sensor_status['MAX30102']['last_update'] = datetime.now()
                     elif sensor == "MPU6050":
@@ -146,24 +149,32 @@ class SensorManager:
                         self.sensor_status['SSD1306']['last_update'] = datetime.now()
         
         elif line.startswith("DATA:"):
-            # Format: DATA:timestamp,ir,red,bpm,beat_avg,accel_x,accel_y,accel_z,gyro_x,gyro_y,gyro_z,temp
+            # Format: DATA:timestamp,audioSample,audioLevel,ir,red,bpm,beat_avg,accel_x,accel_y,accel_z,gyro_x,gyro_y,gyro_z,temp
             parts = line.replace("DATA:", "").split(",")
-            if len(parts) >= 12:
+            if len(parts) >= 14:
                 try:
-                    self.latest_data['ppg'] = {
-                        'ir': int(parts[1]),
-                        'red': int(parts[2]),
-                        'bpm': float(parts[3]),
-                        'beat_avg': int(parts[4])
+                    # Audio data (MAX9814)
+                    self.latest_data['audio'] = {
+                        'timestamp': int(parts[0]),
+                        'sample': int(parts[1]),
+                        'level': int(parts[2])
                     }
+                    # PPG data (MAX30102)
+                    self.latest_data['ppg'] = {
+                        'ir': int(parts[3]),
+                        'red': int(parts[4]),
+                        'bpm': float(parts[5]),
+                        'beat_avg': int(parts[6])
+                    }
+                    # Motion data (MPU6050)
                     self.latest_data['motion'] = {
-                        'accel_x': float(parts[5]),
-                        'accel_y': float(parts[6]),
-                        'accel_z': float(parts[7]),
-                        'gyro_x': float(parts[8]),
-                        'gyro_y': float(parts[9]),
-                        'gyro_z': float(parts[10]),
-                        'temp': float(parts[11])
+                        'accel_x': float(parts[7]),
+                        'accel_y': float(parts[8]),
+                        'accel_z': float(parts[9]),
+                        'gyro_x': float(parts[10]),
+                        'gyro_y': float(parts[11]),
+                        'gyro_z': float(parts[12]),
+                        'temp': float(parts[13])
                     }
                 except (ValueError, IndexError) as e:
                     print(f"Error parsing Arduino data: {e}")

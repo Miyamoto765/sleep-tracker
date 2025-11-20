@@ -6,6 +6,14 @@ This directory contains the Arduino and ESP32 code for interfacing with sleep mo
 
 ### Arduino UNO Sensors
 
+#### MAX9814 (Electret Microphone Amplifier)
+- **VDD** → 5V
+- **GND** → GND
+- **OUT** → A0 (Analog Pin)
+- **GAIN** → GND (60dB), VDD (50dB), or NC (40dB)
+
+**Note:** MAX9814 is an analog microphone amplifier that works with Arduino Uno's analog input pins.
+
 #### MAX30102 (PPG Heart Rate Sensor)
 - **VIN** → 3.3V
 - **GND** → GND
@@ -82,8 +90,8 @@ Install these libraries via Arduino IDE Library Manager:
 ## Data Format
 
 ### Arduino UNO Output:
-- **Status:** `STATUS:MAX30102=1,MPU6050=1,OLED=1`
-- **Data:** `DATA:timestamp,ir,red,bpm,beat_avg,accel_x,accel_y,accel_z,gyro_x,gyro_y,gyro_z,temp`
+- **Status:** `STATUS:MAX9814=1,MAX30102=1,MPU6050=1,OLED=1`
+- **Data:** `DATA:timestamp,audioSample,audioLevel,ir,red,bpm,beat_avg,accel_x,accel_y,accel_z,gyro_x,gyro_y,gyro_z,temp`
 
 ### ESP32 Output:
 - **Status:** `STATUS:INMP441=1`
@@ -101,10 +109,11 @@ Install these libraries via Arduino IDE Library Manager:
    - Check COM port selection
    - Close other programs using the serial port
 
-3. **INMP441 not working:**
-   - Verify ESP32 board is selected (not Arduino UNO)
-   - Check I2S pin connections
-   - Ensure I2S library is properly initialized
+3. **MAX9814 not working:**
+   - Verify analog pin A0 is connected correctly
+   - Check power connections (5V and GND)
+   - Ensure gain pin is properly configured (GND for 60dB recommended)
+   - Test with Serial Monitor to see if audio samples are being read
 
 ## Python Dependencies
 

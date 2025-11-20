@@ -1,8 +1,14 @@
 /*
  * Sleep Tracker - Arduino UNO
- * Sensors: MAX30102 (PPG), MPU6050 (Motion), SSD1306 (OLED Display)
+ * Sensors: MAX9814 (Microphone), MAX30102 (PPG), MPU6050 (Motion), SSD1306 (OLED Display)
  * 
  * Hardware Connections:
+ * MAX9814 (Electret Microphone Amplifier):
+ *   VDD -> 5V
+ *   GND -> GND
+ *   OUT -> A0 (Analog Pin)
+ *   GAIN -> GND (60dB), VDD (50dB), or NC (40dB)
+ * 
  * MAX30102:
  *   VIN -> 3.3V
  *   GND -> GND
@@ -41,7 +47,13 @@ MAX30105 particleSensor;
 // MPU6050 Motion Sensor
 MPU6050 mpu;
 
+// MAX9814 Microphone (Analog)
+#define MIC_PIN A0
+#define SAMPLE_RATE 8000  // 8kHz sample rate
+#define BUFFER_SIZE 128   // Audio buffer size
+
 // Sensor status flags
+bool max9814_connected = true;  // Always connected if pin is configured
 bool max30102_connected = false;
 bool mpu6050_connected = false;
 bool oled_connected = false;
@@ -56,6 +68,12 @@ long redValue = 0;
 float accelX, accelY, accelZ;
 float gyroX, gyroY, gyroZ;
 float temp;
+
+// Audio data variables
+int audioSample = 0;
+int audioLevel = 0;  // RMS or peak level
+unsigned long lastAudioRead = 0;
+const unsigned long AUDIO_INTERVAL = 125; // ~8kHz: 1000ms / 8000 = 0.125ms (use 125 for practical sampling)
 
 unsigned long lastDataSend = 0;
 const unsigned long DATA_INTERVAL = 100; // Send data every 100ms
@@ -111,6 +129,11 @@ void setup() {
     Serial.println("MPU6050 not found!");
   }
   
+  // Initialize MAX9814 Microphone (Analog)
+  pinMode(MIC_PIN, INPUT);
+  max9814_connected = true;
+  Serial.println("MAX9814 Microphone initialized (Analog A0)");
+  
   // Display sensor status on OLED
   updateDisplay();
   
@@ -142,6 +165,15 @@ void loop() {
     temp = mpu.getTemperature() / 340.00 + 36.53;
   }
   
+  // Read MAX9814 audio data (sample at ~8kHz)
+  if (max9814_connected && (currentMillis - lastAudioRead >= AUDIO_INTERVAL)) {
+    audioSample = analogRead(MIC_PIN);
+    // Calculate audio level (remove DC offset, get absolute value)
+    int dcOffset = 512;  // Typical for 5V/2 = 2.5V at analog input
+    audioLevel = abs(audioSample - dcOffset);
+    lastAudioRead = currentMillis;
+  }
+  
   // Send data every DATA_INTERVAL ms
   if (currentMillis - lastDataSend >= DATA_INTERVAL) {
     sendSensorData();
@@ -169,7 +201,9 @@ void loop() {
 
 void sendSensorStatus() {
   Serial.print("STATUS:");
-  Serial.print("MAX30102=");
+  Serial.print("MAX9814=");
+  Serial.print(max9814_connected ? "1" : "0");
+  Serial.print(",MAX30102=");
   Serial.print(max30102_connected ? "1" : "0");
   Serial.print(",MPU6050=");
   Serial.print(mpu6050_connected ? "1" : "0");
@@ -181,6 +215,16 @@ void sendSensorStatus() {
 void sendSensorData() {
   Serial.print("DATA:");
   Serial.print(millis());
+  Serial.print(",");
+  
+  // MAX9814 audio data
+  if (max9814_connected) {
+    Serial.print(audioSample);
+    Serial.print(",");
+    Serial.print(audioLevel);
+  } else {
+    Serial.print("0,0");
+  }
   Serial.print(",");
   
   // MAX30102 data
@@ -224,7 +268,7 @@ void updateDisplay() {
   // Auto-cycle through pages every 5 seconds
   unsigned long currentMillis = millis();
   if (currentMillis - lastPageChange >= PAGE_CHANGE_INTERVAL) {
-    displayPage = (displayPage + 1) % 3; // Cycle through 3 pages
+    displayPage = (displayPage + 1) % 4; // Cycle through 4 pages (added microphone page)
     lastPageChange = currentMillis;
   }
   
@@ -236,10 +280,13 @@ void updateDisplay() {
     case 0: // Overview Page
       displayOverview();
       break;
-    case 1: // PPG Sensor Details
+    case 1: // Microphone Details
+      displayMicrophoneDetails();
+      break;
+    case 2: // PPG Sensor Details
       displayPPGDetails();
       break;
-    case 2: // Motion Sensor Details
+    case 3: // Motion Sensor Details
       displayMotionDetails();
       break;
   }
@@ -266,38 +313,94 @@ void displayOverview() {
   
   // Sensor status indicators
   display.setCursor(0, 22);
-  display.print("PPG:");
+  display.print("Mic:");
+  display.print(max9814_connected ? "OK" : "NO");
+  display.print(" PPG:");
   display.print(max30102_connected ? "OK" : "NO");
-  display.print(" Mot:");
+  display.setCursor(0, 32);
+  display.print("Mot:");
   display.println(mpu6050_connected ? "OK" : "NO");
+  
+  // Audio level (if available)
+  if (max9814_connected) {
+    display.setCursor(0, 42);
+    display.print("Audio: ");
+    display.print(audioLevel);
+  }
   
   // Heart rate (if available)
   if (max30102_connected && beatAvg > 0) {
-    display.setCursor(0, 32);
-    display.setTextSize(2);
-    display.print("BPM:");
-    display.print(beatAvg);
+    display.setCursor(0, 52);
     display.setTextSize(1);
+    display.print("BPM: ");
+    display.print(beatAvg);
   }
   
   // Motion magnitude
   if (mpu6050_connected) {
     float motion = sqrt(accelX*accelX + accelY*accelY + accelZ*accelZ);
-    display.setCursor(0, 48);
+    display.setCursor(64, 42);
     display.print("Motion: ");
     display.print(motion, 1);
-    display.println(" g");
     
     // Temperature
-    display.setCursor(0, 56);
-    display.print("Temp: ");
+    display.setCursor(64, 52);
+    display.print("T: ");
     display.print(temp, 1);
     display.println("C");
   }
   
   // Page indicator
   display.setCursor(110, 0);
-  display.print("1/3");
+  display.print("1/4");
+}
+
+void displayMicrophoneDetails() {
+  display.setCursor(0, 0);
+  display.setTextSize(1);
+  display.println("Microphone (MAX9814)");
+  display.drawLine(0, 10, 128, 10, SSD1306_WHITE);
+  
+  if (max9814_connected) {
+    // Audio sample value
+    display.setCursor(0, 12);
+    display.print("Sample: ");
+    display.println(audioSample);
+    
+    // Audio level
+    display.setCursor(0, 22);
+    display.print("Level: ");
+    display.println(audioLevel);
+    
+    // Visual level indicator (simple bar)
+    int barWidth = map(audioLevel, 0, 512, 0, 120);
+    display.drawRect(0, 32, 120, 8, SSD1306_WHITE);
+    if (barWidth > 0) {
+      display.fillRect(2, 34, barWidth, 4, SSD1306_WHITE);
+    }
+    
+    // Signal quality
+    display.setCursor(0, 44);
+    if (audioLevel > 100) {
+      display.println("Signal: Good");
+    } else if (audioLevel > 50) {
+      display.println("Signal: Fair");
+    } else {
+      display.println("Signal: Weak");
+    }
+    
+    // Status
+    display.setCursor(0, 54);
+    display.print("Status: Active");
+  } else {
+    display.setCursor(0, 20);
+    display.println("Microphone");
+    display.println("Not Connected");
+  }
+  
+  // Page indicator
+  display.setCursor(110, 0);
+  display.print("2/4");
 }
 
 void displayPPGDetails() {
@@ -347,7 +450,7 @@ void displayPPGDetails() {
   
   // Page indicator
   display.setCursor(110, 0);
-  display.print("2/3");
+  display.print("3/4");
 }
 
 void displayMotionDetails() {
@@ -390,7 +493,7 @@ void displayMotionDetails() {
   
   // Page indicator
   display.setCursor(110, 0);
-  display.print("3/3");
+  display.print("4/4");
 }
 
 void startRecording() {

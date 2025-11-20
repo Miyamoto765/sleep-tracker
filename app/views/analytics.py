@@ -437,6 +437,28 @@ def create_calendar_charts(df):
 def render():
     st.markdown('<div class="page-content fade-in">', unsafe_allow_html=True)
     st.header("📊 Advanced Sleep Analytics Dashboard")
+    
+    # Hardware Information Section
+    with st.expander("🔧 Hardware Information", expanded=False):
+        st.markdown("""
+        ### Arduino Uno Setup
+        This analytics dashboard processes data collected from **Arduino Uno** board with the following sensors:
+        
+        **Sensors:**
+        - **MAX9814** - Electret Microphone Amplifier (Analog)
+        - **MAX30102** - PPG Heart Rate Sensor (I2C)
+        - **MPU6050** - Motion Sensor (I2C)
+        - **SSD1306** - OLED Display (I2C)
+        
+        **MAX9814 Microphone Connections:**
+        - **VDD** → 5V
+        - **GND** → GND
+        - **OUT** → A0 (Analog Pin)
+        - **GAIN** → GND (60dB gain) or VDD (50dB gain) or NC (40dB gain)
+        
+        **Note:** The MAX9814 is an analog microphone amplifier that works with Arduino Uno's analog input pins, 
+        unlike the INMP441 which requires I2S interface (only available on ESP32).
+        """)
 
     # Load all data sources
     df = load_all_data()
