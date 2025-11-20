@@ -425,8 +425,8 @@ def render():
                     with col_conn2:
                         if st.button("❌ Disconnect Arduino", key="disconnect_arduino"):
                             sensor_manager.stop()
-                                st.success("Disconnected")
-                                st.rerun()
+                            st.success("Disconnected")
+                            st.rerun()
         
         # Sensor Status Display
         st.markdown("#### 📊 Sensor Status")
@@ -496,16 +496,25 @@ def render():
             # Show sensor data if connected
             if any(status['connected'] for status in sensor_status.values()):
                 st.markdown("---")
-                st.markdown("#### 📈 Live Sensor Data")
+                st.markdown("#### 📈 Live Sensor Data (Arduino UNO)")
                 
                 data_col1, data_col2 = st.columns(2)
                 
                 with data_col1:
                     if max30102_status:
                         st.markdown("**PPG Sensor (MAX30102)**")
-                        st.metric("Heart Rate", f"{int(latest_data['ppg']['beat_avg'])} BPM" if latest_data['ppg']['beat_avg'] > 0 else "N/A")
+                        st.metric(
+                            "Heart Rate",
+                            f"{int(latest_data['ppg']['beat_avg'])} BPM" if latest_data['ppg']['beat_avg'] > 0 else "N/A",
+                        )
                         st.metric("IR Value", f"{latest_data['ppg']['ir']:,}")
                         st.metric("Red Value", f"{latest_data['ppg']['red']:,}")
+                        st.metric(
+                            "Breathing Rate",
+                            f"{latest_data['ppg']['breathing_rate']:.1f} breaths/min"
+                            if latest_data['ppg']['breathing_rate'] > 0
+                            else "N/A",
+                        )
                 
                 with data_col2:
                     if mpu6050_status:
@@ -514,12 +523,29 @@ def render():
                         st.metric("Accel X", f"{latest_data['motion']['accel_x']:.2f} g")
                         st.metric("Accel Y", f"{latest_data['motion']['accel_y']:.2f} g")
                         st.metric("Accel Z", f"{latest_data['motion']['accel_z']:.2f} g")
+                        st.metric(
+                            "Movement Level",
+                            f"{latest_data['motion']['movement_level']:.3f} g",
+                        )
+
+                # Arduino-derived sleep stage summary
+                st.markdown("#### 🧠 Sleep Stage (Arduino Sensors)")
+                sleep_stage = latest_data.get("sleep_stage", "Unknown")
+                noise_level = latest_data.get("audio", {}).get("noise_level", 0)
+                stage_col1, stage_col2 = st.columns(2)
+                with stage_col1:
+                    st.metric("Current Sleep Stage", sleep_stage)
+                with stage_col2:
+                    st.metric("Noise Level (MAX4466)", f"{noise_level} / 1000")
         
         st.markdown("---")
 
-    # Live Recording Section (no upload tab - upload is in navigation)
+    # Live Recording Section (laptop/PC microphone)
     st.markdown("### 🎤 Browser Microphone Recording")
-    st.markdown("Click 'Start Recording' to begin capturing audio from your microphone for real-time sleep pattern analysis.")
+    st.markdown(
+        "Click 'Start Recording' to begin capturing audio from your **computer's microphone** "
+        "for real-time sleep pattern analysis. (This is separate from the Arduino MAX4466 mic.)"
+    )
 
     # Control Arduino recording if connected
     if sensor_manager and sensor_manager.arduino_serial and sensor_manager.arduino_serial.is_open:
@@ -601,5 +627,11 @@ def render():
         - **Speaking**: Speak naturally or record breathing/snoring patterns
         - **Consistency**: Try to record at the same time each night
         """)
+
+    # Optional auto-refresh for Arduino sensor data
+    auto_refresh = st.sidebar.checkbox("Auto-refresh Arduino sensor data (every 1s)", value=False)
+    if auto_refresh:
+        time.sleep(1)
+        st.experimental_rerun()
 
     st.markdown('</div>', unsafe_allow_html=True)
