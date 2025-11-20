@@ -389,11 +389,12 @@ def render():
     else:
         # Scan for available ports
         with st.expander("🔍 Scan & Connect Sensors", expanded=True):
-            col1, col2 = st.columns(2)
+            # Single-column layout — Arduino UNO only
+            col1 = st.columns(1)[0]
             
             with col1:
                 st.subheader("Arduino UNO")
-                st.caption("Sensors: MAX30102 (PPG), MPU6050 (Motion), SSD1306 (OLED)")
+                st.caption("Sensors: MAX30102 (PPG), MPU6050 (Motion), MAX4466 (Sound Level)")
                 
                 if st.button("🔍 Scan Ports", key="scan_arduino"):
                     ports = sensor_manager.scan_ports()
@@ -424,44 +425,8 @@ def render():
                     with col_conn2:
                         if st.button("❌ Disconnect Arduino", key="disconnect_arduino"):
                             sensor_manager.stop()
-                            st.success("Disconnected")
-                            st.rerun()
-            
-            with col2:
-                st.subheader("ESP32")
-                st.caption("Sensor: INMP441 MEMS Microphone (I2S)")
-                
-                if st.button("🔍 Scan Ports", key="scan_esp32"):
-                    ports = sensor_manager.scan_ports()
-                    if ports:
-                        st.session_state.esp32_ports = [p['device'] for p in ports]
-                        st.session_state.esp32_port_info = {p['device']: p['description'] for p in ports}
-                    else:
-                        st.warning("No serial ports found")
-                
-                if 'esp32_ports' in st.session_state and st.session_state.esp32_ports:
-                    selected_esp32 = st.selectbox(
-                        "Select ESP32 Port:",
-                        options=st.session_state.esp32_ports,
-                        key="esp32_port_select",
-                        format_func=lambda x: f"{x} - {st.session_state.esp32_port_info.get(x, 'Unknown')}"
-                    )
-                    
-                    col_conn3, col_conn4 = st.columns(2)
-                    with col_conn3:
-                        if st.button("🔌 Connect ESP32", key="connect_esp32"):
-                            if sensor_manager.connect_esp32(selected_esp32):
-                                st.success(f"Connected to {selected_esp32}")
-                                sensor_manager.start()
+                                st.success("Disconnected")
                                 st.rerun()
-                            else:
-                                st.error("Failed to connect")
-                    
-                    with col_conn4:
-                        if st.button("❌ Disconnect ESP32", key="disconnect_esp32"):
-                            sensor_manager.stop()
-                            st.success("Disconnected")
-                            st.rerun()
         
         # Sensor Status Display
         st.markdown("#### 📊 Sensor Status")
@@ -470,8 +435,8 @@ def render():
             sensor_status = sensor_manager.get_sensor_status()
             latest_data = sensor_manager.get_latest_data()
             
-            # Create status cards
-            col1, col2, col3, col4 = st.columns(4)
+            # Create status cards (UNO sensors only)
+            col1, col2, col3 = st.columns(3)
             
             with col1:
                 max30102_status = sensor_status['MAX30102']['connected']
@@ -513,32 +478,16 @@ def render():
                     st.caption(f"Motion: {motion:.2f} g")
             
             with col3:
-                oled_status = sensor_status['SSD1306']['connected']
-                status_color = "🟢" if oled_status else "🔴"
+                mic_status = sensor_status['MAX4466']['connected']
+                status_color = "🟢" if mic_status else "🔴"
                 st.markdown(f"""
                 <div style="background: rgba(255,255,255,0.05); padding: 12px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.1);">
                     <div style="font-size: 24px; text-align: center;">{status_color}</div>
-                    <div style="text-align: center; font-weight: 600;">SSD1306</div>
-                    <div style="text-align: center; font-size: 12px; color: #aaa;">OLED Display</div>
+                    <div style="text-align: center; font-weight: 600;">MAX4466</div>
+                    <div style="text-align: center; font-size: 12px; color: #aaa;">Sound Level Mic</div>
                     <div style="text-align: center; margin-top: 8px;">
-                        <span style="color: {'#4CAF50' if oled_status else '#f44336'};">
-                            {'Connected' if oled_status else 'Disconnected'}
-                        </span>
-                    </div>
-                </div>
-                """, unsafe_allow_html=True)
-            
-            with col4:
-                inmp441_status = sensor_status['INMP441']['connected']
-                status_color = "🟢" if inmp441_status else "🔴"
-                st.markdown(f"""
-                <div style="background: rgba(255,255,255,0.05); padding: 12px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.1);">
-                    <div style="font-size: 24px; text-align: center;">{status_color}</div>
-                    <div style="text-align: center; font-weight: 600;">INMP441</div>
-                    <div style="text-align: center; font-size: 12px; color: #aaa;">MEMS Mic (ESP32)</div>
-                    <div style="text-align: center; margin-top: 8px;">
-                        <span style="color: {'#4CAF50' if inmp441_status else '#f44336'};">
-                            {'Connected' if inmp441_status else 'Disconnected'}
+                        <span style="color: {'#4CAF50' if mic_status else '#f44336'};">
+                            {'Connected' if mic_status else 'Disconnected'}
                         </span>
                     </div>
                 </div>
