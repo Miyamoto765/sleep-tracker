@@ -6,13 +6,13 @@ This directory contains the Arduino and ESP32 code for interfacing with sleep mo
 
 ### Arduino UNO Sensors
 
-#### MAX9814 (Electret Microphone Amplifier)
-- **VDD** → 5V
+#### MAX4466 (Electret Microphone Amplifier)
+- **VCC** → 3.3V or 5V
 - **GND** → GND
 - **OUT** → A0 (Analog Pin)
-- **GAIN** → GND (60dB), VDD (50dB), or NC (40dB)
 
-**Note:** MAX9814 is an analog microphone amplifier that works with Arduino Uno's analog input pins.
+**Note:** MAX4466 is an analog microphone amplifier that works with Arduino Uno's analog input pins.
+It provides sound level detection (0-1000 scale) for sleep monitoring analysis.
 
 #### MAX30102 (PPG Heart Rate Sensor)
 - **VIN** → 3.3V
@@ -90,8 +90,8 @@ Install these libraries via Arduino IDE Library Manager:
 ## Data Format
 
 ### Arduino UNO Output:
-- **Status:** `STATUS:MAX9814=1,MAX30102=1,MPU6050=1,OLED=1`
-- **Data:** `DATA:timestamp,audioSample,audioLevel,ir,red,bpm,beat_avg,accel_x,accel_y,accel_z,gyro_x,gyro_y,gyro_z,temp`
+- **Status:** `STATUS:MAX4466=1,MAX30102=1,MPU6050=1`
+- **Data:** `DATA:timestamp,heartRate,breathingRate,noiseLevel,movementLevel,sleepStage,ir,red,accel_x,accel_y,accel_z`
 
 ### ESP32 Output:
 - **Status:** `STATUS:INMP441=1`
@@ -109,11 +109,11 @@ Install these libraries via Arduino IDE Library Manager:
    - Check COM port selection
    - Close other programs using the serial port
 
-3. **MAX9814 not working:**
+3. **MAX4466 not working:**
    - Verify analog pin A0 is connected correctly
-   - Check power connections (5V and GND)
-   - Ensure gain pin is properly configured (GND for 60dB recommended)
-   - Test with Serial Monitor to see if audio samples are being read
+   - Check power connections (3.3V or 5V and GND)
+   - Test with Serial Monitor to see if noise level values are being read (0-1000 scale)
+   - Ensure microphone is positioned correctly for sound detection
 
 ## Python Dependencies
 
