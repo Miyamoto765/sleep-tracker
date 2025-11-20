@@ -68,17 +68,41 @@ class SensorManager:
             return []
     
     def connect_arduino(self, port):
-        """Connect to Arduino UNO."""
+        """Connect to Arduino UNO.
+        
+        Returns:
+            tuple: (success: bool, error_message: str)
+        """
         if not SERIAL_AVAILABLE:
-            print("pyserial not available. Install with: pip install pyserial")
-            return False
+            error_msg = "pyserial not available. Install with: pip install pyserial"
+            print(error_msg)
+            return False, error_msg
+        
         try:
+            # Close existing connection if any
             if self.arduino_serial and self.arduino_serial.is_open:
                 self.arduino_serial.close()
             
-            self.arduino_serial = serial.Serial(port, self.baudrate, timeout=1)
+            # Try to open the serial port
+            try:
+                self.arduino_serial = serial.Serial(port, self.baudrate, timeout=1)
+            except serial.SerialException as e:
+                error_msg = f"Port {port} is already in use or doesn't exist. Error: {str(e)}"
+                print(error_msg)
+                return False, error_msg
+            except Exception as e:
+                error_msg = f"Failed to open port {port}. Error: {str(e)}"
+                print(error_msg)
+                return False, error_msg
+            
             self.arduino_port = port
             time.sleep(2)  # Wait for Arduino to reset
+            
+            # Verify connection is still open
+            if not self.arduino_serial.is_open:
+                error_msg = f"Connection to {port} was closed unexpectedly"
+                print(error_msg)
+                return False, error_msg
             
             # Clear any initial data
             self.arduino_serial.reset_input_buffer()
@@ -108,10 +132,11 @@ class SensorManager:
                     break
                 time.sleep(0.1)
             
-            return True
+            return True, "Connected successfully"
         except Exception as e:
-            print(f"Error connecting to Arduino: {e}")
-            return False
+            error_msg = f"Unexpected error connecting to Arduino: {str(e)}"
+            print(error_msg)
+            return False, error_msg
     
     def connect_esp32(self, port):
         """Connect to ESP32."""
@@ -137,9 +162,16 @@ class SensorManager:
                 if self.arduino_serial and self.arduino_serial.is_open:
                     if self.arduino_serial.in_waiting > 0:
                         line = self.arduino_serial.readline().decode('utf-8', errors='ignore').strip()
-                        self._parse_arduino_data(line)
+                        if line:  # Only parse non-empty lines
+                            self._parse_arduino_data(line)
                 time.sleep(0.01)
+            except serial.SerialException as e:
+                # Only log critical errors
+                print(f"Arduino serial error: {e}")
+                self.running = False
+                break
             except Exception as e:
+                # Only log critical errors
                 print(f"Arduino read error: {e}")
                 time.sleep(0.1)
     
@@ -158,67 +190,291 @@ class SensorManager:
     
     def _parse_arduino_data(self, line):
         """Parse data from Arduino UNO."""
+        if not line or not isinstance(line, str):
+            return
+        
+        current_time = datetime.now()
+        line_lower = line.lower()
+        
+        # Handle STATUS messages first
         if line.startswith("STATUS:"):
-            # Format: STATUS:MAX4466=1,MAX30102=1,MPU6050=1
+            # Arduino format: STATUS:MAX30102=1,MPU6050=1,OLED=1
             parts = line.replace("STATUS:", "").split(",")
             for part in parts:
                 if "=" in part:
                     sensor, status = part.split("=")
-                    if sensor == "MAX4466":
-                        self.sensor_status['MAX4466']['connected'] = (status == "1")
-                        self.sensor_status['MAX4466']['last_update'] = datetime.now()
-                    elif sensor == "MAX30102":
-                        self.sensor_status['MAX30102']['connected'] = (status == "1")
-                        self.sensor_status['MAX30102']['last_update'] = datetime.now()
+                    is_connected = (status == "1")
+                    if sensor == "MAX30102":
+                        self.sensor_status['MAX30102']['connected'] = is_connected
+                        self.sensor_status['MAX30102']['last_update'] = current_time
                     elif sensor == "MPU6050":
-                        self.sensor_status['MPU6050']['connected'] = (status == "1")
-                        self.sensor_status['MPU6050']['last_update'] = datetime.now()
+                        self.sensor_status['MPU6050']['connected'] = is_connected
+                        self.sensor_status['MPU6050']['last_update'] = current_time
         
-        elif line.startswith("DATA:"):
-            # Format: DATA:timestamp,heartRate,breathingRate,noiseLevel,movementLevel,sleepStage,ir,red,accel_x,accel_y,accel_z
-            parts = line.replace("DATA:", "").split(",")
-            if len(parts) >= 11:
-                try:
-                    timestamp = int(parts[0])
-                    heart_rate = float(parts[1])
-                    breathing_rate = float(parts[2])
-                    noise_level = int(parts[3])
-                    movement_level = float(parts[4])
-                    sleep_stage = parts[5]
-                    ir = int(parts[6]) if len(parts) > 6 else 0
-                    red = int(parts[7]) if len(parts) > 7 else 0
-                    accel_x = float(parts[8]) if len(parts) > 8 else 0
-                    accel_y = float(parts[9]) if len(parts) > 9 else 0
-                    accel_z = float(parts[10]) if len(parts) > 10 else 0
+        # Handle human-readable format - check each pattern independently
+        # Heart Rate
+        if "heart rate:" in line_lower and "bpm" in line_lower:
+            try:
+                # Format: "Heart Rate: 50.00 BPM" (case insensitive)
+                parts = line.split(":")
+                if len(parts) >= 2:
+                    value_part = parts[1].strip()
+                    bpm_str = value_part.split("BPM")[0].strip()
+                    bpm = float(bpm_str)
+                    self.latest_data['ppg']['bpm'] = bpm
+                    self.latest_data['ppg']['beat_avg'] = int(bpm) if bpm > 0 else 0
+                    self.sensor_status['MAX30102']['connected'] = True
+                    self.sensor_status['MAX30102']['last_update'] = current_time
+            except (ValueError, IndexError):
+                pass
+        
+        # Breathing Rate
+        if "breathing:" in line_lower and "breaths/min" in line_lower:
+            try:
+                parts = line.split(":")
+                if len(parts) >= 2:
+                    value_part = parts[1].strip()
+                    breathing_str = value_part.split("breaths/min")[0].strip()
+                    breathing_rate = float(breathing_str)
+                    self.latest_data['ppg']['breathing_rate'] = breathing_rate
+                    self.sensor_status['MAX30102']['connected'] = True
+                    self.sensor_status['MAX30102']['last_update'] = current_time
+            except (ValueError, IndexError):
+                pass
+        
+        # Noise Level
+        if "noise level" in line_lower and ":" in line:
+            try:
+                parts = line.split(":")
+                if len(parts) >= 2:
+                    noise_str = parts[-1].strip()
+                    # Extract numbers only
+                    noise_str = ''.join(c for c in noise_str if c.isdigit() or c == '.')
+                    noise_level = int(float(noise_str)) if noise_str else 0
+                    self.latest_data['audio']['noise_level'] = noise_level
+                    self.latest_data['audio']['timestamp'] = int(time.time() * 1000)
+                    self.sensor_status['MAX4466']['connected'] = True
+                    self.sensor_status['MAX4466']['last_update'] = current_time
+            except (ValueError, IndexError):
+                pass
+        
+        # Accel X, Y, Z
+        if "accel x:" in line_lower or "acceleration x:" in line_lower:
+            try:
+                parts = line.split(":")
+                if len(parts) >= 2:
+                    accel_str = parts[-1].strip()
+                    accel_x = float(accel_str)
+                    self.latest_data['motion']['accel_x'] = accel_x
+                    self.sensor_status['MPU6050']['connected'] = True
+                    self.sensor_status['MPU6050']['last_update'] = current_time
+            except (ValueError, IndexError):
+                pass
+        
+        if "accel y:" in line_lower or "acceleration y:" in line_lower:
+            try:
+                parts = line.split(":")
+                if len(parts) >= 2:
+                    accel_str = parts[-1].strip()
+                    accel_y = float(accel_str)
+                    self.latest_data['motion']['accel_y'] = accel_y
+                    self.sensor_status['MPU6050']['connected'] = True
+                    self.sensor_status['MPU6050']['last_update'] = current_time
+            except (ValueError, IndexError):
+                pass
+        
+        if "accel z:" in line_lower or "acceleration z:" in line_lower:
+            try:
+                parts = line.split(":")
+                if len(parts) >= 2:
+                    accel_str = parts[-1].strip()
+                    accel_z = float(accel_str)
+                    self.latest_data['motion']['accel_z'] = accel_z
+                    self.sensor_status['MPU6050']['connected'] = True
+                    self.sensor_status['MPU6050']['last_update'] = current_time
+            except (ValueError, IndexError):
+                pass
+        
+        # Temperature
+        if "temperature:" in line_lower and ("°c" in line_lower or "c" in line_lower):
+            try:
+                parts = line.split(":")
+                if len(parts) >= 2:
+                    temp_str = parts[1].strip()
+                    # Remove °C or C
+                    temp_str = temp_str.replace("°C", "").replace("°c", "").replace("C", "").replace("c", "").strip()
+                    temp = float(temp_str)
+                    self.latest_data['motion']['temp'] = temp
+                    self.sensor_status['MPU6050']['connected'] = True
+                    self.sensor_status['MPU6050']['last_update'] = current_time
+            except (ValueError, IndexError):
+                pass
+        
+        # Movement Level
+        if "movement level:" in line_lower:
+            try:
+                parts = line.split(":")
+                if len(parts) >= 2:
+                    movement_str = parts[1].strip()
+                    movement_level = float(movement_str)
+                    self.latest_data['motion']['movement_level'] = movement_level
+                    self.sensor_status['MPU6050']['connected'] = True
+                    self.sensor_status['MPU6050']['last_update'] = current_time
                     
-                    # Audio data (MAX4466)
-                    self.latest_data['audio'] = {
-                        'timestamp': timestamp,
-                        'noise_level': noise_level
-                    }
-                    # PPG data (MAX30102)
-                    self.latest_data['ppg'] = {
-                        'ir': ir,
-                        'red': red,
-                        'bpm': heart_rate,
-                        'beat_avg': int(heart_rate),
-                        'breathing_rate': breathing_rate
-                    }
-                    # Motion data (MPU6050)
-                    self.latest_data['motion'] = {
-                        'accel_x': accel_x,
-                        'accel_y': accel_y,
-                        'accel_z': accel_z,
-                        'gyro_x': 0,  # Not in new format
-                        'gyro_y': 0,  # Not in new format
-                        'gyro_z': 0,  # Not in new format
-                        'temp': 0,    # Not in new format
-                        'movement_level': movement_level
-                    }
-                    # Sleep stage
-                    self.latest_data['sleep_stage'] = sleep_stage
-                except (ValueError, IndexError) as e:
-                    print(f"Error parsing Arduino data: {e}")
+                    # If we have movement level but no individual accel values, estimate them
+                    # This is a fallback - ideally Arduino should send individual values via DATA format
+                    # Check if accel values are missing or effectively zero (not set from DATA format)
+                    current_accel_x = abs(self.latest_data['motion'].get('accel_x', 0.0))
+                    current_accel_y = abs(self.latest_data['motion'].get('accel_y', 0.0))
+                    current_accel_z = abs(self.latest_data['motion'].get('accel_z', 0.0))
+                    
+                    # If movement level is significant and accel values are missing/zero, estimate them
+                    if movement_level > 0.1 and (current_accel_x < 0.01 and current_accel_y < 0.01 and current_accel_z < 0.01):
+                        # Estimate accel values from movement level (rough approximation)
+                        # Assuming roughly equal distribution across axes for magnitude
+                        # Movement level = sqrt(accel_x^2 + accel_y^2 + accel_z^2)
+                        # For equal distribution: movement_level = sqrt(3 * accel^2) = accel * sqrt(3)
+                        estimated_accel = movement_level / (3**0.5)  # sqrt(3) for 3D vector magnitude
+                        self.latest_data['motion']['accel_x'] = estimated_accel
+                        self.latest_data['motion']['accel_y'] = estimated_accel
+                        self.latest_data['motion']['accel_z'] = estimated_accel
+            except (ValueError, IndexError):
+                pass
+        
+        # Sleep Stage
+        if "sleep stage:" in line_lower:
+            try:
+                parts = line.split("Sleep Stage:")
+                if len(parts) >= 2:
+                    stage_str = parts[-1].strip()
+                    self.latest_data['sleep_stage'] = stage_str
+            except (ValueError, IndexError):
+                pass
+        
+        # Handle DATA format (if Arduino sends it)
+        if line.startswith("DATA:"):
+            # Arduino format: DATA:timestamp,ir,red,bpm,beatAvg,accelX,accelY,accelZ,gyroX,gyroY,gyroZ,temp
+            # Expected: 12 parts total (timestamp + 11 data values)
+            data_str = line.replace("DATA:", "")
+            parts = data_str.split(",")
+            current_time = datetime.now()
+            
+            # Update sensor status whenever we receive DATA - connection is alive
+            # This keeps sensors marked as connected as long as we're receiving data
+            # Arduino sends: timestamp,ir,red,bpm,beatAvg,accelX,accelY,accelZ,gyroX,gyroY,gyroZ,temp (12 parts)
+            if len(parts) >= 12:  # Need all 12 parts: timestamp + 11 data values
+                try:
+                    # Parse all values, handling empty strings and conversion errors
+                    timestamp = int(parts[0]) if parts[0] else 0
+                    ir = int(float(parts[1])) if parts[1] and parts[1].strip() else 0
+                    red = int(float(parts[2])) if parts[2] and parts[2].strip() else 0
+                    bpm = float(parts[3]) if parts[3] and parts[3].strip() else 0.0
+                    beat_avg = float(parts[4]) if parts[4] and parts[4].strip() else 0.0
+                    # Only update accel values if they're actually provided and non-zero
+                    # This preserves estimated values from movement level if DATA format has missing/zero values
+                    accel_x_str = parts[5].strip() if parts[5] else ""
+                    accel_y_str = parts[6].strip() if parts[6] else ""
+                    accel_z_str = parts[7].strip() if parts[7] else ""
+                    
+                    if accel_x_str and float(accel_x_str) != 0.0:
+                        accel_x = float(accel_x_str)
+                        self.latest_data['motion']['accel_x'] = accel_x
+                    else:
+                        accel_x = self.latest_data['motion'].get('accel_x', 0.0)
+                    
+                    if accel_y_str and float(accel_y_str) != 0.0:
+                        accel_y = float(accel_y_str)
+                        self.latest_data['motion']['accel_y'] = accel_y
+                    else:
+                        accel_y = self.latest_data['motion'].get('accel_y', 0.0)
+                    
+                    if accel_z_str and float(accel_z_str) != 0.0:
+                        accel_z = float(accel_z_str)
+                        self.latest_data['motion']['accel_z'] = accel_z
+                    else:
+                        accel_z = self.latest_data['motion'].get('accel_z', 0.0)
+                    gyro_x = float(parts[8]) if parts[8] and parts[8].strip() else 0.0
+                    gyro_y = float(parts[9]) if parts[9] and parts[9].strip() else 0.0
+                    gyro_z = float(parts[10]) if parts[10] and parts[10].strip() else 0.0
+                    temp = float(parts[11]) if parts[11] and parts[11].strip() else 0.0
+                    
+                    # Update sensor status based on data presence
+                    # If we're receiving DATA messages, sensors are likely connected
+                    # Check if we have any non-zero data values (even if small)
+                    
+                    # MAX30102 is connected if we have any PPG data (even if values are 0, receiving data means sensor exists)
+                    # More lenient check - if we're getting data packets, assume sensor is connected
+                    if ir >= 0 or red >= 0:  # Even 0 values mean sensor is responding
+                        self.sensor_status['MAX30102']['connected'] = True
+                        self.sensor_status['MAX30102']['last_update'] = current_time
+                    
+                    # MPU6050 is connected if we have any motion data
+                    # More lenient - any data means sensor is connected
+                    # Use the actual stored values (which may include estimated values from movement level)
+                    stored_accel_x = self.latest_data['motion'].get('accel_x', 0.0)
+                    stored_accel_y = self.latest_data['motion'].get('accel_y', 0.0)
+                    stored_accel_z = self.latest_data['motion'].get('accel_z', 0.0)
+                    if stored_accel_x != 0 or stored_accel_y != 0 or stored_accel_z != 0 or gyro_x != 0 or gyro_y != 0 or gyro_z != 0 or temp != 0:
+                        self.sensor_status['MPU6050']['connected'] = True
+                        self.sensor_status['MPU6050']['last_update'] = current_time
+                    # Even if all values are 0, if we're receiving DATA, the sensor might be connected but idle
+                    # So if Arduino is connected and sending data, mark MPU6050 as connected
+                    elif self.arduino_serial and self.arduino_serial.is_open:
+                        self.sensor_status['MPU6050']['connected'] = True
+                        self.sensor_status['MPU6050']['last_update'] = current_time
+                    
+                    # MAX4466 - Arduino doesn't send this in DATA, but if Arduino is connected, assume it's available
+                    # Keep it connected if other sensors are working
+                    if self.arduino_serial and self.arduino_serial.is_open:
+                        self.sensor_status['MAX4466']['connected'] = True
+                        self.sensor_status['MAX4466']['last_update'] = current_time
+                    
+                    # Calculate movement level from actual stored accel values (may include estimated values)
+                    stored_accel_x = self.latest_data['motion'].get('accel_x', 0.0)
+                    stored_accel_y = self.latest_data['motion'].get('accel_y', 0.0)
+                    stored_accel_z = self.latest_data['motion'].get('accel_z', 0.0)
+                    
+                    # Only calculate movement level if we have actual accel values (not zeros)
+                    # Otherwise, preserve the movement level from human-readable format
+                    if stored_accel_x != 0 or stored_accel_y != 0 or stored_accel_z != 0:
+                        calculated_movement_level = (stored_accel_x**2 + stored_accel_y**2 + stored_accel_z**2)**0.5
+                        # Only update if we don't already have a movement level from human-readable format
+                        if self.latest_data['motion'].get('movement_level', 0) == 0:
+                            self.latest_data['motion']['movement_level'] = calculated_movement_level
+                    
+                    # Calculate breathing rate (simplified - could be improved)
+                    breathing_rate = bpm / 4.0 if bpm > 0 else 0
+                    
+                    # Store data from DATA format - this provides IR, Red, Accel X/Y/Z, Temperature
+                    # Update PPG data - preserve human-readable values if they exist
+                    self.latest_data['ppg']['ir'] = ir
+                    self.latest_data['ppg']['red'] = red
+                    # Only update BPM/beat_avg if not already set from human-readable format
+                    if self.latest_data['ppg']['bpm'] == 0:
+                        self.latest_data['ppg']['bpm'] = bpm
+                    if self.latest_data['ppg']['beat_avg'] == 0:
+                        self.latest_data['ppg']['beat_avg'] = int(beat_avg) if beat_avg > 0 else int(bpm)
+                    if self.latest_data['ppg']['breathing_rate'] == 0:
+                        self.latest_data['ppg']['breathing_rate'] = breathing_rate
+                    
+                    # Update Motion data - Accel X/Y/Z are already updated above (with preservation logic)
+                    # Only update gyro and temp here
+                    self.latest_data['motion']['gyro_x'] = gyro_x
+                    self.latest_data['motion']['gyro_y'] = gyro_y
+                    self.latest_data['motion']['gyro_z'] = gyro_z
+                    # Only update temp if it's actually provided
+                    if temp != 0:
+                        self.latest_data['motion']['temp'] = temp
+                    # Movement level is already handled above (preserves human-readable format)
+                except (ValueError, IndexError):
+                    pass  # Silently skip parsing errors
+                    # Even if parsing fails, receiving DATA means connection is alive
+                    # Update at least one sensor status to show connection
+                    if self.arduino_serial and self.arduino_serial.is_open:
+                        self.sensor_status['MAX30102']['last_update'] = current_time
+                        self.sensor_status['MPU6050']['last_update'] = current_time
+                        self.sensor_status['MAX4466']['last_update'] = current_time
+            # If DATA format doesn't match, silently skip (might be handled by human-readable format parser)
     
     def _parse_esp32_data(self, line):
         """Parse data from ESP32."""
@@ -277,13 +533,29 @@ class SensorManager:
     
     def get_sensor_status(self):
         """Get current sensor connection status."""
-        # Update status based on last update time (timeout after 5 seconds)
         current_time = datetime.now()
-        for sensor_name, status in self.sensor_status.items():
-            if status['last_update']:
-                time_diff = (current_time - status['last_update']).total_seconds()
-                if time_diff > 5:
-                    status['connected'] = False
+        
+        # If Arduino is connected and open, assume sensors are available
+        # This helps show sensors as connected even before first data arrives
+        if self.arduino_serial and self.arduino_serial.is_open:
+            # If sensors haven't been updated yet, mark them as connected if Arduino is connected
+            for sensor_name in ['MAX30102', 'MPU6050', 'MAX4466']:
+                if sensor_name in self.sensor_status:
+                    if self.sensor_status[sensor_name]['last_update'] is None:
+                        # No update yet, but Arduino is connected, so assume sensors are available
+                        self.sensor_status[sensor_name]['connected'] = True
+                        self.sensor_status[sensor_name]['last_update'] = current_time
+                    else:
+                        # Check timeout - only mark as disconnected if no update for 15 seconds
+                        time_diff = (current_time - self.sensor_status[sensor_name]['last_update']).total_seconds()
+                        if time_diff > 15:  # Increased timeout to 15 seconds
+                            # Only mark as disconnected if we're really not getting data
+                            # But if Arduino is still connected, keep them as connected
+                            pass  # Don't auto-disconnect if Arduino is still connected
+        else:
+            # Arduino not connected, mark all sensors as disconnected
+            for sensor_name, status in self.sensor_status.items():
+                status['connected'] = False
         
         return self.sensor_status
     

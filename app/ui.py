@@ -148,25 +148,37 @@ def apply_css():
         }
 
         .nav-buttons-holder > div[data-testid="stHorizontalBlock"] {
-          display: flex;
-          gap: 12px;
-          justify-content: center;
-          max-width: 920px;
+          display: flex !important;
+          gap: 24px !important;
+          justify-content: center !important;
+          align-items: stretch !important;
+          max-width: 1100px;
           margin: 12px auto 24px auto;
+          padding: 0 24px;
+          width: 100%;
         }
 
         .nav-buttons-holder > div[data-testid="stHorizontalBlock"] > div {
-          flex: 0 1 auto;
-          min-width: 0;
+          flex: 0 1 auto !important;
+          min-width: 120px !important;
+          max-width: 220px !important;
+          margin: 0 !important;
+          padding: 0 !important;
+        }
+        
+        .nav-buttons-holder > div[data-testid="stHorizontalBlock"] > div > div[data-testid="stButton"] {
+          width: 100% !important;
+          margin: 0 !important;
+          padding: 0 !important;
         }
 
         /* Enhanced button styles with better mobile support */
-        div[data-testid="stButton"] > button {
+        .nav-buttons-holder div[data-testid="stButton"] > button {
           background: linear-gradient(135deg, rgba(255,255,255,0.05), rgba(255,255,255,0.02));
           color: #e0f7f8;
           border-radius: 12px;
           border: 1px solid rgba(255,255,255,0.08);
-          padding: 12px 28px;
+          padding: 12px 20px;
           font-size: 16px;
           font-weight: 600;
           transition: all 250ms cubic-bezier(0.4, 0, 0.2, 1);
@@ -177,6 +189,8 @@ def apply_css():
           box-shadow: 
             0 2px 8px rgba(0,0,0,0.2),
             0 0 0 1px rgba(255,255,255,0.05) inset;
+          width: 100% !important;
+          margin: 0 !important;
         }
 
         div[data-testid="stButton"] > button:hover {
@@ -199,6 +213,11 @@ def apply_css():
           .nav-buttons-holder > div[data-testid="stHorizontalBlock"] {
             flex-direction: column;
             max-width: 100%;
+            gap: 12px;
+          }
+          
+          .nav-buttons-holder > div[data-testid="stHorizontalBlock"] > div {
+            width: 100%;
           }
         }
 
@@ -407,12 +426,13 @@ def navbar_buttons(pages_dict):
     st.markdown('<div class="nav-buttons-holder">', unsafe_allow_html=True)
     keys = list(pages_dict.keys())
     if keys:
-        cols = st.columns(len(keys))
+        # Use equal spacing for buttons
+        cols = st.columns(len(keys), gap="large")
         for i, name in enumerate(keys):
             with cols[i]:
                 label = name
                 # Render a button; clicking it sets session state and reruns
-                if st.button(label, key=f"nav_{name}"):
+                if st.button(label, key=f"nav_{name}", use_container_width=True):
                     st.session_state["page"] = name
                     # Use safe rerun to support different Streamlit versions
                     safe_rerun()

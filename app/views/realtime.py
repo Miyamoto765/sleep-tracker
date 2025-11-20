@@ -419,7 +419,8 @@ def render():
                     with col_conn1:
                         if st.button("🔌 Connect Arduino", key="connect_arduino"):
                             with st.spinner("Connecting to Arduino..."):
-                                if sensor_manager.connect_arduino(selected_arduino):
+                                success, error_msg = sensor_manager.connect_arduino(selected_arduino)
+                                if success:
                                     st.success(f"Connected to {selected_arduino}")
                                     # Start reading thread
                                     sensor_manager.start()
@@ -427,7 +428,12 @@ def render():
                                     time.sleep(0.3)
                                     safe_rerun()
                                 else:
-                                    st.error("Failed to connect. Please check the port and try again.")
+                                    st.error(f"❌ Connection failed: {error_msg}")
+                                    st.info("💡 **Troubleshooting tips:**\n"
+                                           "- Make sure the Arduino is plugged in\n"
+                                           "- Check if another program is using the port\n"
+                                           "- Try unplugging and replugging the Arduino\n"
+                                           "- Verify the correct port is selected")
                     
                     with col_conn2:
                         if st.button("❌ Disconnect Arduino", key="disconnect_arduino"):
@@ -439,6 +445,12 @@ def render():
         st.markdown("#### 📊 Sensor Status")
         
         if sensor_manager:
+            # Check if reading thread is running
+            if sensor_manager.arduino_serial and sensor_manager.arduino_serial.is_open:
+                if not sensor_manager.running:
+                    # Thread not running, start it
+                    sensor_manager.start()
+            
             sensor_status = sensor_manager.get_sensor_status()
             latest_data = sensor_manager.get_latest_data()
             
@@ -510,7 +522,35 @@ def render():
                     st.markdown("#### 📈 Live Sensor Data (Arduino UNO)")
                 with update_indicator_col2:
                     current_time = datetime.now().strftime("%H:%M:%S")
-                    st.caption(f"🔄 Last update: {current_time}")
+                    # Check if we have recent data
+                    has_recent_data = any(
+                        status['last_update'] and 
+                        (datetime.now() - status['last_update']).total_seconds() < 5
+                        for status in sensor_status.values()
+                    )
+                    status_icon = "🟢" if has_recent_data else "🟡"
+                    st.caption(f"{status_icon} Last update: {current_time}")
+                    
+                    # Debug info
+                    if sensor_manager.arduino_serial and sensor_manager.arduino_serial.is_open:
+                        if sensor_manager.running:
+                            st.caption("✅ Reading thread active")
+                        else:
+                            st.caption("⚠️ Reading thread not running")
+                            if st.button("🔄 Restart Reading Thread", key="restart_thread"):
+                                sensor_manager.start()
+                                safe_rerun()
+                        
+                        # Test data reception
+                        if st.button("🔍 Test Data Reception", key="test_data"):
+                            try:
+                                if sensor_manager.arduino_serial.in_waiting > 0:
+                                    test_line = sensor_manager.arduino_serial.readline().decode('utf-8', errors='ignore').strip()
+                                    st.success(f"✅ Data received: {test_line[:100]}")
+                                else:
+                                    st.warning("⚠️ No data waiting in buffer. Make sure Arduino is sending data.")
+                            except Exception as e:
+                                st.error(f"❌ Error reading: {str(e)}")
                 
                 
                 data_col1, data_col2 = st.columns(2)
@@ -518,30 +558,42 @@ def render():
                 with data_col1:
                     if max30102_status:
                         st.markdown("**PPG Sensor (MAX30102)**")
-                        st.metric(
-                            "Heart Rate",
-                            f"{int(latest_data['ppg']['beat_avg'])} BPM" if latest_data['ppg']['beat_avg'] > 0 else "N/A",
-                        )
-                        st.metric("IR Value", f"{latest_data['ppg']['ir']:,}")
-                        st.metric("Red Value", f"{latest_data['ppg']['red']:,}")
+                        # Show values - check both beat_avg and bpm
+                        beat_avg_val = latest_data.get('ppg', {}).get('beat_avg', 0)
+                        bpm_val = latest_data.get('ppg', {}).get('bpm', 0)
+                        # Show BPM if available
+                        if beat_avg_val > 0:
+                            heart_rate_display = f"{int(beat_avg_val)} BPM"
+                        elif bpm_val > 0:
+                            heart_rate_display = f"{int(bpm_val)} BPM"
+                        else:
+                            heart_rate_display = "N/A"
+                        st.metric("Heart Rate", heart_rate_display)
+                        ir_val = latest_data.get('ppg', {}).get('ir', 0)
+                        red_val = latest_data.get('ppg', {}).get('red', 0)
+                        st.metric("IR Value", f"{ir_val:,}")
+                        st.metric("Red Value", f"{red_val:,}")
+                        breathing_rate = latest_data.get('ppg', {}).get('breathing_rate', 0)
                         st.metric(
                             "Breathing Rate",
-                            f"{latest_data['ppg']['breathing_rate']:.1f} breaths/min"
-                            if latest_data['ppg']['breathing_rate'] > 0
-                            else "N/A",
+                            f"{breathing_rate:.1f} breaths/min" if breathing_rate > 0 else "N/A",
                         )
+                        
                 
                 with data_col2:
                     if mpu6050_status:
                         st.markdown("**Motion Sensor (MPU6050)**")
-                        st.metric("Temperature", f"{latest_data['motion']['temp']:.1f}°C")
-                        st.metric("Accel X", f"{latest_data['motion']['accel_x']:.2f} g")
-                        st.metric("Accel Y", f"{latest_data['motion']['accel_y']:.2f} g")
-                        st.metric("Accel Z", f"{latest_data['motion']['accel_z']:.2f} g")
-                        st.metric(
-                            "Movement Level",
-                            f"{latest_data['motion']['movement_level']:.3f} g",
-                        )
+                        temp_val = latest_data.get('motion', {}).get('temp', 0)
+                        st.metric("Temperature", f"{temp_val:.1f}°C" if temp_val > 0 else "0.0°C")
+                        accel_x = latest_data.get('motion', {}).get('accel_x', 0)
+                        accel_y = latest_data.get('motion', {}).get('accel_y', 0)
+                        accel_z = latest_data.get('motion', {}).get('accel_z', 0)
+                        st.metric("Accel X", f"{accel_x:.2f} g")
+                        st.metric("Accel Y", f"{accel_y:.2f} g")
+                        st.metric("Accel Z", f"{accel_z:.2f} g")
+                        movement = latest_data.get('motion', {}).get('movement_level', 0)
+                        st.metric("Movement Level", f"{movement:.3f} g")
+                        
 
                 # Arduino-derived sleep stage summary
                 st.markdown("#### 🧠 Sleep Stage (Arduino Sensors)")
@@ -561,22 +613,6 @@ def render():
         "Click 'Start Recording' to begin capturing audio from your **computer's microphone** "
         "for real-time sleep pattern analysis. (This is separate from the Arduino MAX4466 mic.)"
     )
-
-    # Control Arduino recording if connected
-    if sensor_manager and sensor_manager.arduino_serial and sensor_manager.arduino_serial.is_open:
-        rec_col1, rec_col2 = st.columns(2)
-        with rec_col1:
-            if st.button("🔴 Start Arduino Recording", key="start_arduino_rec"):
-                if sensor_manager.start_recording():
-                    st.success("Arduino recording started - OLED will show recording status")
-                else:
-                    st.error("Failed to start Arduino recording")
-        with rec_col2:
-            if st.button("⏹️ Stop Arduino Recording", key="stop_arduino_rec"):
-                if sensor_manager.stop_recording():
-                    st.success("Arduino recording stopped")
-                else:
-                    st.error("Failed to stop Arduino recording")
 
     # Render audio recorder component
     st.components.v1.html(audio_recorder_component(), height=300)
