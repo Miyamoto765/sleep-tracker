@@ -541,6 +541,16 @@ def render():
                                 sensor_manager.start()
                                 safe_rerun()
                         
+                        # Show buffer status
+                        try:
+                            bytes_waiting = sensor_manager.arduino_serial.in_waiting
+                            if bytes_waiting > 0:
+                                st.caption(f"📊 {bytes_waiting} bytes waiting in buffer")
+                            else:
+                                st.caption("📊 No data in buffer")
+                        except:
+                            pass
+                        
                         # Test data reception
                         if st.button("🔍 Test Data Reception", key="test_data"):
                             try:
@@ -698,5 +708,6 @@ def render():
         except Exception as e:
             # If there's an error, don't crash - just skip the refresh
             st.sidebar.warning(f"Auto-refresh error: {str(e)}")
-
+    
     st.markdown('</div>', unsafe_allow_html=True)
+

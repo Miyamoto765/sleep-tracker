@@ -1,11 +1,10 @@
 # Firmware Files for Sleep Tracker
 
-This directory contains the Arduino and ESP32 firmware code for easy access.
+This directory contains the Arduino firmware code for easy access.
 
 ## Files
 
-- **`arduino_uno.ino`** - Arduino UNO code for MAX30102 (PPG), MPU6050 (Motion), and SSD1306 (OLED Display)
-- **`esp32.ino`** - ESP32 code for INMP441 MEMS Microphone (I2S)
+- **`arduino_uno.ino`** - Arduino UNO code for MAX30102 (PPG), MPU6050 (Motion), MAX4466 (Sound Level), and SSD1306 (OLED Display)
 
 ## Quick Start
 
@@ -14,14 +13,6 @@ This directory contains the Arduino and ESP32 firmware code for easy access.
 1. Open `arduino_uno.ino` in Arduino IDE
 2. Install required libraries (see `arduino/libraries.txt`)
 3. Select Board: **Arduino UNO**
-4. Select Port: Your COM port
-5. Click Upload
-
-### ESP32 Setup
-
-1. Open `esp32.ino` in Arduino IDE
-2. Ensure ESP32 board support is installed
-3. Select Board: **ESP32 Dev Module**
 4. Select Port: Your COM port
 5. Click Upload
 

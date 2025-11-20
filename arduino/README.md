@@ -1,6 +1,6 @@
-# Arduino/ESP32 Sensor Integration for Sleep Tracker
+# Arduino Sensor Integration for Sleep Tracker
 
-This directory contains the Arduino and ESP32 code for interfacing with sleep monitoring sensors.
+This directory contains the Arduino code for interfacing with sleep monitoring sensors.
 
 ## Hardware Setup
 
@@ -34,56 +34,28 @@ It provides sound level detection (0-1000 scale) for sleep monitoring analysis.
 
 **Note:** All I2C devices share the same SDA/SCL pins (A4/A5) on Arduino UNO.
 
-### ESP32 Sensor
-
-#### INMP441 (MEMS Microphone - I2S)
-- **VDD** → 3.3V
-- **GND** → GND
-- **WS (LRCL)** → GPIO 25
-- **SCK (BCLK)** → GPIO 26
-- **SD (DOUT)** → GPIO 27
-
-**Important:** INMP441 requires I2S interface which is only available on ESP32, not Arduino UNO.
-
 ## Required Arduino Libraries
 
 Install these libraries via Arduino IDE Library Manager:
 
-### For Arduino UNO:
+### Required Libraries:
 1. **Adafruit SSD1306** - OLED display driver
 2. **Adafruit GFX** - Graphics library for OLED
 3. **MAX30105** - PPG sensor library (by SparkFun)
 4. **MPU6050** - Motion sensor library (by Electronic Cats or similar)
-
-### For ESP32:
-1. **WiFi** - Built-in ESP32 library
-2. **driver/i2s.h** - Built-in ESP32 I2S library
 
 ## Installation Steps
 
 1. **Install Arduino IDE** (if not already installed)
    - Download from: https://www.arduino.cc/en/software
 
-2. **Install ESP32 Board Support** (for ESP32 code)
-   - In Arduino IDE: File → Preferences
-   - Add to Additional Board Manager URLs:
-     ```
-     https://raw.githubusercontent.com/espressif/arduino-esp32/gh-pages/package_esp32_index.json
-     ```
-   - Tools → Board → Boards Manager → Search "ESP32" → Install
-
-3. **Install Required Libraries**
+2. **Install Required Libraries**
    - Tools → Manage Libraries
    - Search and install each library listed above
 
-4. **Upload Code**
-   - For Arduino UNO: Open `sleep_tracker_uno/sleep_tracker_uno.ino`
+3. **Upload Code**
+   - Open `sleep_tracker_uno/sleep_tracker_uno.ino`
    - Select Board: Tools → Board → Arduino UNO
-   - Select Port: Tools → Port → (your COM port)
-   - Click Upload
-
-   - For ESP32: Open `sleep_tracker_esp32/sleep_tracker_esp32.ino`
-   - Select Board: Tools → Board → ESP32 Dev Module
    - Select Port: Tools → Port → (your COM port)
    - Click Upload
 
@@ -92,10 +64,6 @@ Install these libraries via Arduino IDE Library Manager:
 ### Arduino UNO Output:
 - **Status:** `STATUS:MAX4466=1,MAX30102=1,MPU6050=1`
 - **Data:** `DATA:timestamp,heartRate,breathingRate,noiseLevel,movementLevel,sleepStage,ir,red,accel_x,accel_y,accel_z`
-
-### ESP32 Output:
-- **Status:** `STATUS:INMP441=1`
-- **Audio:** `AUDIO:timestamp,audio_data`
 
 ## Troubleshooting
 

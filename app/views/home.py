@@ -21,7 +21,7 @@ def render():
             <h2>🌙 Features</h2>
             <ul style="line-height:1.8;">
                 <li>🎵 <b>Audio Sleep Analysis</b> – Upload recordings to detect sleep stage clusters using ML.</li>
-                <li>📡 <b>Real-time Sensors</b> – Connect Arduino/ESP32 hardware for live motion & breathing insights.</li>
+                <li>📡 <b>Real-time Sensors</b> – Connect Arduino UNO hardware for live motion & breathing insights.</li>
                 <li>📊 <b>Sleep Quality Insights</b> – View charts and trends based on AI predictions.</li>
                 <li>🧠 <b>Smart Feature Extraction</b> – MFCCs, rolloff, zcr and more.</li>
             </ul>
