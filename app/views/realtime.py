@@ -18,6 +18,9 @@ try:
 except ImportError:
     SensorManager = None
 
+# Import safe_rerun from ui module
+from app.ui import safe_rerun
+
 # Configuration
 MODEL_PATH = "models/rf_model.joblib"
 SCALER_PATH = "models/scaler.joblib"
@@ -415,18 +418,22 @@ def render():
                     col_conn1, col_conn2 = st.columns(2)
                     with col_conn1:
                         if st.button("🔌 Connect Arduino", key="connect_arduino"):
-                            if sensor_manager.connect_arduino(selected_arduino):
-                                st.success(f"Connected to {selected_arduino}")
-                                sensor_manager.start()
-                                st.rerun()
-                            else:
-                                st.error("Failed to connect")
+                            with st.spinner("Connecting to Arduino..."):
+                                if sensor_manager.connect_arduino(selected_arduino):
+                                    st.success(f"Connected to {selected_arduino}")
+                                    # Start reading thread
+                                    sensor_manager.start()
+                                    # Small delay to ensure status is read
+                                    time.sleep(0.3)
+                                    safe_rerun()
+                                else:
+                                    st.error("Failed to connect. Please check the port and try again.")
                     
                     with col_conn2:
                         if st.button("❌ Disconnect Arduino", key="disconnect_arduino"):
                             sensor_manager.stop()
                             st.success("Disconnected")
-                            st.rerun()
+                            safe_rerun()
         
         # Sensor Status Display
         st.markdown("#### 📊 Sensor Status")
@@ -496,7 +503,15 @@ def render():
             # Show sensor data if connected
             if any(status['connected'] for status in sensor_status.values()):
                 st.markdown("---")
-                st.markdown("#### 📈 Live Sensor Data (Arduino UNO)")
+                
+                # Real-time update indicator
+                update_indicator_col1, update_indicator_col2 = st.columns([3, 1])
+                with update_indicator_col1:
+                    st.markdown("#### 📈 Live Sensor Data (Arduino UNO)")
+                with update_indicator_col2:
+                    current_time = datetime.now().strftime("%H:%M:%S")
+                    st.caption(f"🔄 Last update: {current_time}")
+                
                 
                 data_col1, data_col2 = st.columns(2)
                 
@@ -628,10 +643,24 @@ def render():
         - **Consistency**: Try to record at the same time each night
         """)
 
-    # Optional auto-refresh for Arduino sensor data
-    auto_refresh = st.sidebar.checkbox("Auto-refresh Arduino sensor data (every 1s)", value=False)
+    # Real-time auto-refresh for Arduino sensor data
+    auto_refresh = st.sidebar.checkbox("🔄 Enable Real-time Updates", value=True, 
+                                       help="Automatically refresh sensor data every second")
+    
     if auto_refresh:
-        time.sleep(1)
-        st.experimental_rerun()
+        try:
+            # Check if sensors are connected before refreshing
+            should_refresh = False
+            if sensor_manager:
+                sensor_status = sensor_manager.get_sensor_status()
+                should_refresh = any(status['connected'] for status in sensor_status.values())
+            
+            if should_refresh:
+                # Use Streamlit's built-in auto-refresh mechanism
+                time.sleep(1)
+                safe_rerun()
+        except Exception as e:
+            # If there's an error, don't crash - just skip the refresh
+            st.sidebar.warning(f"Auto-refresh error: {str(e)}")
 
     st.markdown('</div>', unsafe_allow_html=True)

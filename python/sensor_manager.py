@@ -79,6 +79,35 @@ class SensorManager:
             self.arduino_serial = serial.Serial(port, self.baudrate, timeout=1)
             self.arduino_port = port
             time.sleep(2)  # Wait for Arduino to reset
+            
+            # Clear any initial data
+            self.arduino_serial.reset_input_buffer()
+            
+            # Try to read initial status message synchronously
+            # Arduino sends STATUS message in setup(), so wait a bit and read it
+            time.sleep(0.5)
+            max_attempts = 20  # Increased attempts to handle startup messages
+            status_received = False
+            for attempt in range(max_attempts):
+                if self.arduino_serial.in_waiting > 0:
+                    try:
+                        line = self.arduino_serial.readline().decode('utf-8', errors='ignore').strip()
+                        if line:
+                            # Parse any data we receive
+                            self._parse_arduino_data(line)
+                            # If we got a status message, mark it and continue reading for a bit
+                            if line.startswith("STATUS:"):
+                                status_received = True
+                                # Read a bit more to catch any additional messages
+                                time.sleep(0.2)
+                                break
+                    except Exception as e:
+                        print(f"Error reading initial status: {e}")
+                elif status_received:
+                    # If we already got status and no more data, break early
+                    break
+                time.sleep(0.1)
+            
             return True
         except Exception as e:
             print(f"Error connecting to Arduino: {e}")
