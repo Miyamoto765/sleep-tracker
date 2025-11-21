@@ -233,14 +233,14 @@ def audio_recorder_component():
                     stopBtn.disabled = false;
                     pauseBtn.disabled = false;
 
-                    updateStatus('🔴 Recording...', '#f44336');
+                    updateStatus('🔴 Recording... Speak clearly into your microphone', '#f44336');
                     drawWaveform();
 
                     // Update recording duration
                     const durationInterval = setInterval(() => {
                         if (mediaRecorder && mediaRecorder.state === 'recording' && !isPaused) {
                             const duration = Math.floor((Date.now() - recordingStartTime) / 1000);
-                            updateStatus(`🔴 Recording... ${duration}s`, '#f44336');
+                            updateStatus(`🔴 Recording... ${duration}s `, '#f44336');
                         } else {
                             clearInterval(durationInterval);
                         }

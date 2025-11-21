@@ -460,7 +460,7 @@ def footer():
     st.markdown(
         """
         <div class="app-footer">
-          Built with ❤️ • By Kabeer, Prathibha and Akshay • Sleep Tracker — prototype
+          Built with ❤️ • By Kabeer, Prathibha and Akshay • Sleep Pattern Tracker — prototype
         </div>
         """,
         unsafe_allow_html=True,
