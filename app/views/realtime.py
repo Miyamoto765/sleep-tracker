@@ -589,8 +589,6 @@ def render():
                 with data_col2:
                     if mpu6050_status:
                         st.markdown("**Motion Sensor (MPU6050)**")
-                        temp_val = latest_data.get('motion', {}).get('temp', 0)
-                        st.metric("Temperature", f"{temp_val:.1f}°C" if temp_val > 0 else "0.0°C")
                         accel_x = latest_data.get('motion', {}).get('accel_x', 0)
                         accel_y = latest_data.get('motion', {}).get('accel_y', 0)
                         accel_z = latest_data.get('motion', {}).get('accel_z', 0)
