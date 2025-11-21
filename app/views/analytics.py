@@ -197,7 +197,7 @@ def create_overview_charts(df):
         
         # Filter: show all canonical labels even if 0, plus any non-canonical with data
         # But pie charts don't display 0 values well, so show canonical with min 0.1 if 0
-        display_stages = all_stages.copy()
+        display_stages = all_stages.copy().astype(float)  # Convert to float to allow 0.1 values
         for label in CANONICAL_LABELS:
             if display_stages[label] == 0:
                 display_stages[label] = 0.1  # Small value to show in chart
@@ -438,26 +438,6 @@ def render():
     st.markdown('<div class="page-content fade-in">', unsafe_allow_html=True)
     st.header("📊 Advanced Sleep Analytics Dashboard")
     
-    # Hardware Information Section
-    with st.expander("🔧 Hardware Information", expanded=False):
-        st.markdown("""
-        ### Arduino Uno Setup
-        This analytics dashboard processes data collected from **Arduino Uno** board with the following sensors:
-        
-        **Sensors:**
-        - **MAX4466** - Electret Microphone Amplifier (Analog)
-        - **MAX30102** - PPG Heart Rate & Breathing Sensor (I2C)
-        - **MPU6050** - Motion Sensor (I2C)
-        
-        **MAX4466 Microphone Connections:**
-        - **VCC** → 3.3V or 5V
-        - **GND** → GND
-        - **OUT** → A0 (Analog Pin)
-        
-        **Note:** The MAX4466 is an analog microphone amplifier that works with Arduino Uno's analog input pins.
-        It provides sound level detection for sleep monitoring analysis.
-        """)
-
     # Load all data sources
     df = load_all_data()
 
