@@ -579,10 +579,6 @@ def render():
                         else:
                             heart_rate_display = "N/A"
                         st.metric("Heart Rate", heart_rate_display)
-                        ir_val = latest_data.get('ppg', {}).get('ir', 0)
-                        red_val = latest_data.get('ppg', {}).get('red', 0)
-                        st.metric("IR Value", f"{ir_val:,}")
-                        st.metric("Red Value", f"{red_val:,}")
                         breathing_rate = latest_data.get('ppg', {}).get('breathing_rate', 0)
                         st.metric(
                             "Breathing Rate",
