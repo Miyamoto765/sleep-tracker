@@ -10,10 +10,10 @@ def render():
       <div style="display:flex; gap:18px; align-items:center;">
         <div style="font-size:48px">😴</div>
         <div>
-          <h1 style="margin:0;">AI Sleep Tracker</h1>
+          <h1 style="margin:0;">Sleep Pattern Tracker</h1>
           <p style="margin:6px 0 0 0; color:#d9f1f1;">
             Quick, private sleep insights using only your breathing & motion data —
-            upload a short clip or simulate motion logs and get an instant sleep-stage snapshot.
+            upload a short clip or connect live sensors and get an instant sleep-stage snapshot.
           </p>
         </div>
       </div>
@@ -28,36 +28,8 @@ def render():
       <ol style="line-height:1.9;">
         <li><b>Upload</b> — Add a 30–60s audio (WAV/MP3) and we'll extract acoustic features.</li>
         <li><b>Analyze</b> — A trained model scores the recording and returns a sleep-cluster & quality score.</li>
-        <li><b>Track</b> — Use the Logger to record motion or run a simulation and monitor trends in Analytics.</li>
+        <li><b>Track</b> — Head to <b>Real-time</b> to connect Arduino sensors and monitor trends instantly in Analytics.</li>
       </ol>
-
-      <div style="margin-top:16px;">
-        <form action="#" method="get">
-          <button type="submit"
-            style="background:linear-gradient(90deg,#00dfd8,#7c3aed);
-                   color:white;border:none;padding:10px 18px;
-                   border-radius:8px;font-weight:700;
-                   box-shadow:0 0 8px rgba(0,223,216,0.4);
-                   transition:all 0.3s ease;"
-            onmouseover="this.style.boxShadow='0 0 14px rgba(124,58,237,0.6)'"
-            onmouseout="this.style.boxShadow='0 0 8px rgba(0,223,216,0.4)'"
-            onclick="window.location.href = window.location.pathname + '?page=Upload'; return false;">
-            🚀 Start Upload
-          </button>
-        </form>
-      </div>
-
-      <!-- hidden iframe for legacy postMessage (kept as-is but not required) -->
-      <iframe style="display:none;">
-      <script>
-      window.addEventListener('message', (event) => {
-        if(event.data && event.data.type === 'NAV_UPLOAD'){
-          const streamlit = window.parent || window;
-          streamlit.dispatchEvent(new Event('NAV_UPLOAD'));
-        }
-      });
-      </script>
-      </iframe>
     </div>
     """, unsafe_allow_html=True)
 

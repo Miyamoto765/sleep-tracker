@@ -63,20 +63,41 @@ def _map_prediction_to_label(pred):
 def sidebar_history_widget(max_items: int = 6):
     st.sidebar.header("Upload history")
     if os.path.exists(HISTORY_CSV):
-        df_hist = pd.read_csv(HISTORY_CSV)
-        if df_hist.shape[0] == 0:
-            st.sidebar.info("No uploads yet.")
-            return
-        recent = df_hist.sort_values("timestamp", ascending=False).head(max_items)
-        for _, r in recent.iterrows():
-            ts = r.get("timestamp")
-            fn = r.get("filename")
-            pred = r.get("label", r.get("prediction", ""))
-            score = r.get("sleep_score", "")
-            if pd.isna(score):
-                score = ""
-            st.sidebar.write(f"**{fn}** — {pred} ({int(score) if score!='' else ''}%)")
-            st.sidebar.caption(str(ts))
+        try:
+            # Try reading with error handling for malformed CSV
+            df_hist = pd.read_csv(HISTORY_CSV, on_bad_lines='skip', engine='python')
+            if df_hist.empty:
+                st.sidebar.info("No uploads yet.")
+                return
+            recent = df_hist.sort_values("timestamp", ascending=False).head(max_items)
+            for _, r in recent.iterrows():
+                ts = r.get("timestamp")
+                fn = r.get("filename")
+                pred = r.get("label", r.get("prediction", ""))
+                score = r.get("sleep_score", "")
+                if pd.isna(score):
+                    score = ""
+                st.sidebar.write(f"**{fn}** — {pred} ({int(score) if score!='' else ''}%)")
+                st.sidebar.caption(str(ts))
+        except Exception as e:
+            try:
+                # Fallback: try with skip bad lines
+                df_hist = pd.read_csv(HISTORY_CSV, on_bad_lines='skip', sep=',', quoting=1, skipinitialspace=True)
+                if df_hist.empty:
+                    st.sidebar.info("No uploads yet.")
+                    return
+                recent = df_hist.sort_values("timestamp", ascending=False).head(max_items)
+                for _, r in recent.iterrows():
+                    ts = r.get("timestamp")
+                    fn = r.get("filename")
+                    pred = r.get("label", r.get("prediction", ""))
+                    score = r.get("sleep_score", "")
+                    if pd.isna(score):
+                        score = ""
+                    st.sidebar.write(f"**{fn}** — {pred} ({int(score) if score!='' else ''}%)")
+                    st.sidebar.caption(str(ts))
+            except Exception as e2:
+                st.sidebar.warning("Could not load upload history. CSV file may be corrupted.")
     else:
         st.sidebar.info("No uploads yet. Upload a .wav or .mp3 to get started.")
 
@@ -85,7 +106,7 @@ def render():
     st.markdown("## 🎵 Upload audio & predict sleep stage")
     st.markdown(
         "Add a short recording (30–60s). Supported: WAV, MP3, FLAC, OGG. "
-        "The app extracts acoustic features and predicts a sleep-stage cluster."
+        "The Website extracts acoustic features and predicts a sleep-stage cluster."
     )
 
     model, scaler, feature_cols = load_model()
